@@ -172,3 +172,5 @@ cython_debug/
 
 examples
 sa_speech.json
+static
+llama_model.py
