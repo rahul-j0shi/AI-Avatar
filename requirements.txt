@@ -2,3 +2,5 @@ google-cloud-speech
 google-cloud-texttospeech 
 pyaudio
 streamlit
+openai
+python-dotenv
