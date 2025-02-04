@@ -1,39 +1,34 @@
 from google.cloud import texttospeech
-import os
 
-def text_to_speech(text, output_filename):
+class TextToSpeechHandler:
+    def __init__(self, credentials_path):
+        self.credentials_path = credentials_path
+        try:
+            self.client = texttospeech.TextToSpeechClient.from_service_account_file(credentials_path)
+        except Exception as e:
+            print(f"Error initializing Text-to-Speech client: {str(e)}")
+            raise
     
-    # Initialize the client
-    client = texttospeech.TextToSpeechClient.from_service_account_file("./sa_speech.json")
-    
-    # Set the text input
-    synthesis_input = texttospeech.SynthesisInput(text=text)
-    
-    # Configure voice parameters
-    voice = texttospeech.VoiceSelectionParams(
-        language_code="en-US",
-        ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL
-    )
-    
-    # Set audio configuration
-    audio_config = texttospeech.AudioConfig(
-        audio_encoding=texttospeech.AudioEncoding.MP3
-    )
-    
-    # Generate speech
-    response = client.synthesize_speech(
-        input=synthesis_input,
-        voice=voice,
-        audio_config=audio_config
-    )
-    
-    # Save the audio file
-    with open(output_filename, "wb") as out:
-        out.write(response.audio_content)
-        print(f"Audio content written to file: {output_filename}")
-
-# Example usage
-if __name__ == "__main__":
-    text = "haa bhai kya haal hai"
-    output_file = "output.mp3"
-    text_to_speech(text, output_file)
+    def synthesize_speech(self, text, output_filename, language_code="hi-IN"):
+        try:
+            synthesis_input = texttospeech.SynthesisInput(text=text)
+            voice = texttospeech.VoiceSelectionParams(
+                language_code=language_code,
+                ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL
+            )
+            audio_config = texttospeech.AudioConfig(
+                audio_encoding=texttospeech.AudioEncoding.MP3
+            )
+            
+            response = self.client.synthesize_speech(
+                input=synthesis_input,
+                voice=voice,
+                audio_config=audio_config
+            )
+            
+            with open(output_filename, "wb") as out:
+                out.write(response.audio_content)
+            return True
+        except Exception as e:
+            print(f"Error in speech synthesis: {str(e)}")
+            return False
