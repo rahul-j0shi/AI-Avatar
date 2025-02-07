@@ -4,3 +4,4 @@ pyaudio
 streamlit
 openai
 python-dotenv
+requests

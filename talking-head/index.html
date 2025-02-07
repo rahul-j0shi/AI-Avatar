@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Talking Avatar</title>
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <script type="importmap">
+    { 
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js/+esm",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+            "talkinghead": "./talkinghead/TalkingHead/modules/talkinghead.mjs"
+        }
+    }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div id="avatar">
+            <div id="loading" style="text-align: center; padding: 20px;">
+                Click the button to start the avatar
+            </div>
+        </div>
+        <div class="controls">
+            <textarea id="text-to-speak" placeholder="Enter text for the avatar to speak..."></textarea>
+            <button id="speak-button">Speak</button>
+        </div>
+    </div>
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
