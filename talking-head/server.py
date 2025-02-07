@@ -5,7 +5,7 @@ from urllib.parse import urlparse, parse_qs
 
 class CustomHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        self.google_api_key = "AIzaSyCwq17UInLhZhqE-L3xyrWw5CRSlO1OJJ4"  # Your API key
+        self.google_api_key = "API-KEY"  
         super().__init__(*args, **kwargs)
 
     def do_POST(self):
