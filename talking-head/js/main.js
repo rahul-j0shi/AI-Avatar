@@ -2,6 +2,25 @@ import { TalkingHead } from "talkinghead";
 
 let head;
 
+// Function to check for new responses
+async function checkForNewResponse() {
+    try {
+        const response = await fetch('http://localhost:8000/get_response');
+        const data = await response.json();
+        
+        if (data.hasNew && data.text) {
+            // Update textarea (optional - for visualization)
+            const textarea = document.getElementById('text-to-speak');
+            if (textarea) textarea.value = data.text;
+            
+            // Make avatar speak
+            await speak(data.text);
+        }
+    } catch (error) {
+        console.error('Error checking for new response:', error);
+    }
+}
+
 async function initializeAvatar() {
     console.log('Starting avatar initialization...');
     const avatarContainer = document.getElementById('avatar');
@@ -9,14 +28,11 @@ async function initializeAvatar() {
     try {
         console.log('Creating TalkingHead instance...');
         head = new TalkingHead(avatarContainer, {
-            // Point to our local proxy instead of Google's API directly
-            ttsEndpoint: "http://localhost:8000/tts",  // This will be handled by our proxy
+            ttsEndpoint: "http://localhost:8000/tts",
             ttsLang: "en-US",
             ttsVoice: "en-US-Standard-A",
             lipsyncLang: 'en',
             lipsyncModules: ["en"],
-            
-            // Basic visual settings
             modelPixelRatio: window.devicePixelRatio,
             modelFPS: 30,
             cameraRotateEnable: true
@@ -35,24 +51,30 @@ async function initializeAvatar() {
         const loadingDiv = document.getElementById('loading');
         if (loadingDiv) loadingDiv.remove();
         
-        document.getElementById('speak-button').addEventListener('click', speak);
+        // Start polling for new responses
+        setInterval(checkForNewResponse, 1000);  // Check every second
+        
+        // Keep the speak button functionality for testing
+        document.getElementById('speak-button').addEventListener('click', () => {
+            const text = document.getElementById('text-to-speak').value;
+            speak(text);
+        });
     } catch (error) {
         console.error('Error initializing avatar:', error);
     }
 }
 
-async function speak() {
+async function speak(text) {
     if (!head) {
         console.error('Avatar not initialized');
         return;
     }
 
-    const textToSpeak = document.getElementById('text-to-speak').value;
-    if (textToSpeak.trim() === '') return;
+    if (!text || text.trim() === '') return;
 
     try {
-        console.log('Attempting to speak:', textToSpeak);
-        await head.speakText(textToSpeak, {
+        console.log('Attempting to speak:', text);
+        await head.speakText(text, {
             avatarMood: 'neutral'
         });
     } catch (error) {

@@ -177,3 +177,4 @@ llama_model.py
 output.mp3
 conversations
 talking-head/talkingHead
+text_to_speech.py

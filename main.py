@@ -1,7 +1,7 @@
 import os
 from speech_to_text import SpeechToTextHandler
 from llm_call import LLMHandler
-from text_to_speech import TextToSpeechHandler
+import requests
 import time
 
 class ConversationSystem:
@@ -9,18 +9,10 @@ class ConversationSystem:
         # Configuration
         self.credentials_path = os.getenv("GOOGLE_CLOUD_CREDENTIALS")
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
-        self.output_dir = "conversations"
-        
-        # Ensure output directory exists
-        os.makedirs(self.output_dir, exist_ok=True)
         
         # Initialize components
         self.stt = SpeechToTextHandler(self.credentials_path)
         self.llm = LLMHandler(self.openai_api_key)
-        self.tts = TextToSpeechHandler(self.credentials_path)
-        
-        # Set up conversation counter
-        self.conversation_counter = 0
         
     def handle_transcript(self, transcript):
         """Callback function to handle new transcripts"""
@@ -31,17 +23,19 @@ class ConversationSystem:
         if llm_response:
             print(f"Assistant: {llm_response}")
             
-            # Generate speech from LLM response
-            output_filename = os.path.join(
-                self.output_dir, 
-                f"response_{self.conversation_counter}.mp3"
-            )
-            if self.tts.synthesize_speech(llm_response, output_filename):
-                print(f"Response saved as: {output_filename}")
-            else:
-                print("Failed to synthesize speech")
-                
-            self.conversation_counter += 1
+            # Send response to our server
+            try:
+                response = requests.post(
+                    'http://localhost:8000/set_response',
+                    json={'text': llm_response},
+                    headers={'Content-Type': 'application/json'}
+                )
+                if response.status_code == 200:
+                    print("Response sent to avatar successfully")
+                else:
+                    print("Failed to send response to avatar")
+            except Exception as e:
+                print(f"Error sending response to avatar: {str(e)}")
         else:
             print("Failed to generate LLM response")
 
