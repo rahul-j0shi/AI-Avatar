@@ -1,30 +1,44 @@
-# AI Avatar Conversational System
+# 3D AI Avatar
 
-A sophisticated conversational AI system that enables natural Hindi language interaction through speech, powered by Google Cloud Services and OpenAI's GPT-3.5.
-
-## Overview
-
-The AI Avatar Conversational System creates an interactive experience where users can have natural conversations in Hindi. The system processes spoken Hindi input, generates contextually relevant responses in Hinglish (Hindi written in Roman script), and converts these responses back into spoken Hindi, creating a seamless conversational flow.
+This project implements a conversational AI system that allows users to interact with a 3D animated avatar using speech. The user speaks into a microphone and receives audio responses from the avatar in Hinglish (Hindi language written in Roman script).
 
 ## Features
 
-- Real-time speech-to-text conversion for Hindi language input
-- Natural language processing using GPT-3.5 for generating contextual responses  
-- Text-to-speech synthesis for Hindi audio output
-- Friendly conversational style using Hinglish format
-- Automatic conversation history management
-- Real-time audio processing and response generation
+- Real-time speech recognition using Google Cloud Speech-to-Text API
+- Natural language conversation with OpenAI GPT-3.5 turbo model
+- Realistic 3D talking avatar rendered in the browser with Three.js
+- Audio responses in Hinglish using Google Text-to-Speech API
 
-## Prerequisites
+## Requirements
 
-- Python 3.7 or higher
-- Google Cloud Platform account with Speech-to-Text and Text-to-Speech APIs enabled
+- Python 3.7+
+- Google Cloud Speech-to-Text API credentials
 - OpenAI API key
-- PyAudio
-- Internet connection
+- Modern web browser with WebGL support
 
-## Required Environment Variables
+## Installation
 
+1. Clone the repository
+2. Install the required Python packages
+3. Set up the necessary API credentials:
+    - Create a Google Cloud project and enable the Speech-to-Text API
+    - Generate and download the Google Cloud credentials JSON file
+    - Generate a GCP API key and restrict its usage for Text-to-Speech
+    - Create an OpenAI API key
+4. Set the required keys as environment variables
+
+## Usage
+
+Usage
+
+1. Start the backend server:
 ```bash
-GOOGLE_CLOUD_CREDENTIALS=path/to/your/google-credentials.json
-OPENAI_API_KEY=your-openai-api-key
+python main.py
+```
+2. In a separate terminal, start the proxy server by navigating to the talking-head file:
+```bash
+python server.py
+```
+3. Open a web browser and navigate to http://localhost:8000
+4. Click the "Start Avatar" button and grant microphone permission
+5. Speak in Hindi and wait for the avatar's response
