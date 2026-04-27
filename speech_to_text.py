@@ -1,15 +1,16 @@
 import io
 import queue
 import threading
-from google.oauth2 import service_account
-from google.cloud import speech_v1 as speech
+import time
+import numpy as np
 import pyaudio
+import openai
+import wave
 import warnings
 
 warnings.filterwarnings("ignore")
 
 class MicrophoneStream:
-    """Opens a recording stream as a generator yielding the audio chunks."""
     def __init__(self, rate, chunk):
         self._rate = rate
         self._chunk = chunk
@@ -59,76 +60,97 @@ class MicrophoneStream:
             yield b"".join(data)
 
 class SpeechToTextHandler:
-    def __init__(self, credentials_path, language_code="hi-IN"):
-        try:
-            self.credentials = service_account.Credentials.from_service_account_file(credentials_path)
-            self.client = speech.SpeechClient(credentials=self.credentials)
-            self.RATE = 16000
-            self.CHUNK = int(self.RATE / 10)
-            self.language_code = language_code
-            self.transcript_queue = queue.Queue()
-            self.is_running = False
-            self.on_transcript_callback = None
-        except Exception as e:
-            print(f"Error initializing Speech-to-Text handler: {str(e)}")
-            raise
+    def __init__(self, api_key, language_code="hi"):
+        self.api_key = api_key
+        self.client = openai.OpenAI(api_key=api_key)
+        self.RATE = 16000
+        self.CHUNK = int(self.RATE / 10)
+        self.language_code = language_code
+        self.transcript_queue = queue.Queue()
+        self.is_running = False
+        self.on_transcript_callback = None
+        self.silence_threshold = 500
+        self.silence_frames = 30
 
     def set_transcript_callback(self, callback):
-        """Set a callback function to be called when new transcript is available"""
         self.on_transcript_callback = callback
-    
-    def get_config(self):
-        return speech.RecognitionConfig(
-            encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
-            sample_rate_hertz=self.RATE,
-            language_code=self.language_code,
-            enable_automatic_punctuation=True,
-        )
 
-    def process_transcripts(self):
-        streaming_config = speech.StreamingRecognitionConfig(
-            config=self.get_config(),
-            interim_results=True,
-        )
+    def is_silent(self, audio_data):
+        audio_array = np.frombuffer(audio_data, dtype=np.int16)
+        return np.abs(audio_array).mean() < self.silence_threshold
+
+    def process_audio(self):
+        buffer_duration = 0
+        silence_count = 0
+        recording = False
+        speech_frames = []
 
         try:
             with MicrophoneStream(self.RATE, self.CHUNK) as stream:
                 audio_generator = stream.generator()
-                requests = (
-                    speech.StreamingRecognizeRequest(audio_content=content)
-                    for content in audio_generator
-                )
 
-                responses = self.client.streaming_recognize(streaming_config, requests)
-
-                for response in responses:
+                for chunk in audio_generator:
                     if not self.is_running:
                         break
-                        
-                    if not response.results:
-                        continue
 
-                    result = response.results[0]
-                    if not result.alternatives:
-                        continue
+                    if self.is_silent(chunk):
+                        if recording:
+                            silence_count += 1
+                            if silence_count > self.silence_frames:
+                                audio_bytes = b"".join(speech_frames)
+                                threading.Thread(target=self.transcribe_audio, args=(audio_bytes,)).start()
+                                speech_frames = []
+                                recording = False
+                                silence_count = 0
+                        else:
+                            silence_count = 0
+                    else:
+                        if not recording:
+                            recording = True
+                        speech_frames.append(chunk)
+                        silence_count = 0
 
-                    transcript = result.alternatives[0].transcript
-
-                    if result.is_final:
-                        self.transcript_queue.put(transcript)
-                        if self.on_transcript_callback:
-                            self.on_transcript_callback(transcript)
+                        if len(speech_frames) > 300:
+                            audio_bytes = b"".join(speech_frames)
+                            threading.Thread(target=self.transcribe_audio, args=(audio_bytes,)).start()
+                            speech_frames = []
 
         except Exception as e:
-            print(f"Error in processing transcripts: {str(e)}")
+            print(f"Error in processing audio: {str(e)}")
             self.is_running = False
+
+    def transcribe_audio(self, audio_bytes):
+        try:
+            wav_io = io.BytesIO()
+            with wave.open(wav_io, 'wb') as wav_file:
+                wav_file.setnchannels(1)
+                wav_file.setsampwidth(2)
+                wav_file.setframerate(self.RATE)
+                wav_file.writeframes(audio_bytes)
+
+            wav_io.seek(0)
+            wav_io.name = 'audio.wav'
+
+            response = self.client.audio.transcriptions.create(
+                model="whisper-1",
+                file=wav_io,
+                language=self.language_code,
+                response_format="text"
+            )
+
+            transcript = response.strip()
+            if transcript and self.on_transcript_callback:
+                self.on_transcript_callback(transcript)
+
+        except Exception as e:
+            print(f"Error in transcription: {str(e)}")
 
     def start(self):
         if self.is_running:
             return
-            
+
         self.is_running = True
-        self.thread = threading.Thread(target=self.process_transcripts)
+        self.thread = threading.Thread(target=self.process_audio)
         self.thread.start()
 
     def stop(self):

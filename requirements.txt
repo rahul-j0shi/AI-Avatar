@@ -1,7 +1,6 @@
-google-cloud-speech 
-google-cloud-texttospeech 
+openai
+minimax
 pyaudio
 streamlit
-openai
 python-dotenv
 requests

@@ -6,13 +6,25 @@ import time
 
 class ConversationSystem:
     def __init__(self):
-        # Configuration
-        self.credentials_path = os.getenv("GOOGLE_CLOUD_CREDENTIALS")
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
-        
-        # Initialize components
-        self.stt = SpeechToTextHandler(self.credentials_path)
-        self.llm = LLMHandler(self.openai_api_key)
+        self.minimax_api_key = os.getenv("MINIMAX_API_KEY")
+
+        self.stt = SpeechToTextHandler(self.openai_api_key)
+        self.llm = LLMHandler(self.minimax_api_key)
+
+        self._configure_tts_server()
+
+    def _configure_tts_server(self):
+        try:
+            response = requests.post(
+                'http://localhost:8000/configure',
+                json={'minimax_api_key': self.minimax_api_key},
+                headers={'Content-Type': 'application/json'}
+            )
+            if response.status_code == 200:
+                print("TTS server configured with MiniMax API key")
+        except Exception as e:
+            print(f"Warning: Could not configure TTS server: {str(e)}")
         
     def handle_transcript(self, transcript):
         """Callback function to handle new transcripts"""
