@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hinglish AI Avatar - बात करो, जादू देखो</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/landing.css">
+</head>
+<body>
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <a href="landing.html" class="logo">Hinglish AI Avatar</a>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-content">
+            <div class="hero-text">
+                <span class="tagline-badge">⚡ GenAI powered Hinglish conversations</span>
+                <h1 class="hero-title">बात करो, जादू देखो</h1>
+                <p class="hero-subtitle">The Hinglish AI Avatar that speaks your language.</p>
+                <p class="hero-description">Hold natural, voice-first conversations with a lifelike 3D character. No typing, no menus – just talk.</p>
+                <a href="playground.html" class="cta-button pulse-glow">Start Talking – It's Free</a>
+            </div>
+            <div class="hero-avatar">
+                <div class="avatar-glow"></div>
+                <div class="avatar-frame" id="avatar-frame">
+                    <canvas id="avatar-canvas"></canvas>
+                </div>
+                <div class="particles-container" id="particles"></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="how-it-works">
+        <div class="section-container">
+            <h2 class="section-title gradient-text">तेरा AI dost तीन steps में</h2>
+            <p class="section-subtitle">Get started in under 60 seconds.</p>
+            <div class="steps-grid">
+                <div class="step-card" data-animate>
+                    <span class="step-number">01</span>
+                    <div class="step-icon">🎙️</div>
+                    <h3 class="step-title">Speak Freely</h3>
+                    <p class="step-desc">Speak in Hinglish naturally</p>
+                </div>
+                <div class="step-card" data-animate>
+                    <span class="step-number">02</span>
+                    <div class="step-icon">🧠</div>
+                    <h3 class="step-title">AI Understands</h3>
+                    <p class="step-desc">AI samjhega aapki baat</p>
+                </div>
+                <div class="step-card" data-animate>
+                    <span class="step-number">03</span>
+                    <div class="step-icon">😀</div>
+                    <h3 class="step-title">Avatar Responds</h3>
+                    <p class="step-desc">Avatar jawab dega, jaise koi dost</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="features-grid-section">
+        <div class="section-container">
+            <h2 class="section-title gradient-text">Kyun hamara avatar?</h2>
+            <div class="features-grid">
+                <div class="feature-card" data-animate>
+                    <div class="feature-icon">💬</div>
+                    <h3>Hinglish Dil Se</h3>
+                    <p>Pure natural Hinglish, no Devanagari.</p>
+                </div>
+                <div class="feature-card" data-animate>
+                    <div class="feature-icon">⚡</div>
+                    <h3>Real-Time Voice</h3>
+                    <p>No awkward pauses, sub-second latency.</p>
+                </div>
+                <div class="feature-card" data-animate>
+                    <div class="feature-icon">🎨</div>
+                    <h3>Customizable Looks</h3>
+                    <p>Swap avatars, clothes, environments.</p>
+                </div>
+                <div class="feature-card" data-animate>
+                    <div class="feature-icon">🔒</div>
+                    <h3>Privacy First</h3>
+                    <p>Your voice is processed in-session, nothing stored.</p>
+                </div>
+                <div class="feature-card" data-animate>
+                    <div class="feature-icon">📱</div>
+                    <h3>Works Everywhere</h3>
+                    <p>Desktop, mobile, tablet – all you need is a mic.</p>
+                </div>
+                <div class="feature-card" data-animate>
+                    <div class="feature-icon">🔌</div>
+                    <h3>Provider Agnostic</h3>
+                    <p>Use any STT, LLM, or TTS provider you want.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="final-cta">
+        <div class="cta-content">
+            <h2 class="cta-title">Ready to chat with the future?</h2>
+            <p class="cta-subtitle">No sign-up, no credit card. Just बोलो.</p>
+            <a href="playground.html" class="cta-button-inverted">Start Talking – Free & Instant</a>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <p>Made with ❤️ for the Hinglish internet. © 2025</p>
+        <div class="footer-links">
+            <a href="#privacy">Privacy</a>
+            <a href="#terms">Terms</a>
+        </div>
+    </footer>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js/+esm",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+        }
+    }
+    </script>
+    <script type="module" src="js/landing.js"></script>
+</body>
+</html>

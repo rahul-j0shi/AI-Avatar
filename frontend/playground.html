@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Avatar Playground</title>
+    <link rel="stylesheet" href="css/playground.css">
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js/+esm",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+        }
+    }
+    </script>
+</head>
+<body>
+    <div id="app" class="app-container">
+        <aside id="config-panel" class="config-panel">
+            <h2>Configuration</h2>
+
+            <section class="config-section">
+                <h3>Speech-to-Text</h3>
+                <div class="form-group">
+                    <label for="stt-provider">Provider</label>
+                    <select id="stt-provider" class="form-control">
+                        <option value="">Select STT provider...</option>
+                        <option value="whisper">Whisper</option>
+                        <option value="deepgram">Deepgram</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="stt-api-key">API Key</label>
+                    <input type="password" id="stt-api-key" class="form-control" placeholder="Enter API key">
+                </div>
+                <div class="form-group">
+                    <label for="stt-language">Language</label>
+                    <select id="stt-language" class="form-control">
+                        <option value="en">English</option>
+                        <option value="hi">Hindi</option>
+                        <option value="zh">Chinese</option>
+                        <option value="es">Spanish</option>
+                    </select>
+                </div>
+            </section>
+
+            <section class="config-section">
+                <h3>Large Language Model</h3>
+                <div class="form-group">
+                    <label for="llm-provider">Provider</label>
+                    <select id="llm-provider" class="form-control">
+                        <option value="">Select LLM provider...</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="minimax">MiniMax</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="llm-api-key">API Key</label>
+                    <input type="password" id="llm-api-key" class="form-control" placeholder="Enter API key">
+                </div>
+                <div class="form-group">
+                    <label for="llm-model">Model</label>
+                    <select id="llm-model" class="form-control">
+                        <option value="gpt-4o">GPT-4o</option>
+                        <option value="gpt-4o-mini">GPT-4o Mini</option>
+                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="system-prompt">System Prompt</label>
+                    <textarea id="system-prompt" class="form-control" rows="3" placeholder="You are a helpful assistant..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="llm-temperature">Temperature: <span id="temp-value">0.7</span></label>
+                    <input type="range" id="llm-temperature" min="0" max="1" step="0.1" value="0.7">
+                </div>
+            </section>
+
+            <section class="config-section">
+                <h3>Text-to-Speech</h3>
+                <div class="form-group">
+                    <label for="tts-provider">Provider</label>
+                    <select id="tts-provider" class="form-control">
+                        <option value="">Select TTS provider...</option>
+                        <option value="minimax">MiniMax</option>
+                        <option value="elevenlabs">ElevenLabs</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="tts-api-key">API Key</label>
+                    <input type="password" id="tts-api-key" class="form-control" placeholder="Enter API key">
+                </div>
+                <div class="form-group">
+                    <label for="tts-voice">Voice ID</label>
+                    <input type="text" id="tts-voice" class="form-control" placeholder="male-qn-qingse">
+                </div>
+                <div class="form-group">
+                    <label for="tts-speed">Speed: <span id="speed-value">1.0</span></label>
+                    <input type="range" id="tts-speed" min="0.5" max="2" step="0.1" value="1.0">
+                </div>
+            </section>
+
+            <button id="start-session" class="btn-primary">Start Session</button>
+            <button id="back-to-landing" class="btn-secondary">Back to Landing</button>
+        </aside>
+
+        <main id="playground-area" class="playground-area">
+            <div class="avatar-section">
+                <div id="avatar-container">
+                    <div id="loading">Click Start Session to begin</div>
+                </div>
+                <button id="mic-button" class="mic-button" disabled>
+                    <span class="mic-icon">🎙️</span>
+                </button>
+            </div>
+
+            <div class="conversation-log" id="conversation-log">
+                <div class="log-header">
+                    <h3>Conversation</h3>
+                    <button id="clear-log" class="btn-text">Clear</button>
+                </div>
+                <div id="log-content" class="log-content"></div>
+            </div>
+        </main>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
