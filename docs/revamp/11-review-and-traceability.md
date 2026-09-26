@@ -41,6 +41,11 @@ remain open. Re-run this review at the end of every phase.
 | R31 | Every feature specified in detail with hard boundaries | 12 | all | Covered |
 | R32 | Implementation-ready: verified dependencies, conventions, config/protocol reference, ordered backlog | 13 | 0–7 | Covered |
 | R33 | Resume bullets match what is built | 09 Phase 7, 13 T7.6 | 7 | Covered |
+| R34 | Desktop presence is the avatar itself, not a dashboard/dialog/terminal/stats UI | 02 §2–3; 12 F02 AC7 | 2 | Covered; transient bubble/type/approval UI only when needed; spike controls cannot ship |
+| R35 | Minimise/hide and reliably restore from tray, keyboard or terminal | 02 §3.1; 12 F01–F03 | 2 | Covered; frameless skip-taskbar semantics are explicitly “hide to tray” |
+| R36 | Start/use Svara from keyboard and terminal, including when it is not running | 01 §3a; 02 §1.2, §3.1; 12 F01/F09 | 2–3 | Covered; Talk/Show/Toggle/Configure have defined cold-start behaviour |
+| R37 | Turn it down/off at distinct levels | 02 §3.1; 12 F03/F11/F12/F38 | 2–7 | Covered: scale, hide, mic mute, output volume/pause, disable autostart, quit, uninstall/purge |
+| R38 | Right-click access to controls and configuration | 02 §3; 12 F03 | 2 | Covered with an exhaustive native-menu order and checked state |
 
 ## 2. Gap log (review of the first version of this plan)
 
@@ -132,6 +137,10 @@ remain open. Re-run this review at the end of every phase.
 | G69 | Kokoro Tier A timing was unconfirmed | Medium | Resolved: the timestamped ONNX export outputs `pred_dur` (03 §4.8); Spike B confirms accuracy |
 | G70 | No field-level protocol payloads or complete config key list; no task-level backlog | High | 13 §6–§8 |
 | G71 | No language-ID choice for typed turns | Low | 03 §4.6: `tts.defaultLanguage` (no language-ID library) |
+| G72 | The shell spike's diagnostic panel could be mistaken for, or leak into, the desktop product UI | High | 02 §2 production-surface invariant; 12 F02 AC7; 09 Phase 0/2; T2.3 screenshot + DOM audit |
+| G73 | “Minimise” was undefined for a frameless, skip-taskbar avatar, and Hide only had a 30-minute form | Medium | 02 §3/§3.1 and 12 F02: indefinite hide-to-tray plus tray/hotkey/CLI restore |
+| G74 | Keyboard/CLI controls did not define cold-start behaviour or a Show/Hide shortcut | Medium | 01 §3a; 02 §1.2/§3.1; 12 F01 AC6–7 |
+| G75 | “Turn down/off/remove” was spread across unrelated features and output volume was missing | Medium | 02 §3.1 control matrix; 08 §2; 12 F03/F11/F12/F38; 13 §6/§8 |
 
 ## 3. Risk register (what can still go wrong)
 

@@ -213,6 +213,7 @@ are validation errors. The source feature is in 12.
 | `features.*` | bool | see 12 §0.4 | — | F30 |
 | `ui.responseMode` | enum | `speak+bubble` | `speak+bubble`, `bubble`, `speak` | F11 |
 | `ui.bubbleHideAfterSec` | int | 8 | 3–60 | F05 |
+| `ui.outputVolume` | float | 1.0 | 0.0–1.0 | F03, F11, F12 |
 | `ui.avatar.scale` | float | 1.0 | 0.5–2.0, step 0.1 | F02 |
 | `ui.avatar.position` | object \| null | null | `{monitor, x, y}` (machine-written) | F02 |
 | `ui.micMuted` / `ui.voicePaused` | bool | false | — | F03 |
@@ -374,16 +375,16 @@ tests pass.
 
 | ID | Task | Implements | Depends on | Done when |
 |----|------|-----------|------------|-----------|
-| T2.1 | Shell app: sidecar lifecycle (01 §3a), single instance, CLI actions, autostart toggle, graceful exit, crash restart | F01 (AC1–5) | T0.7, T1.6 | ACs pass |
+| T2.1 | Shell app: sidecar lifecycle (01 §3a), single instance, full CLI/cold-start action contract, autostart toggle, graceful exit, crash restart | F01 (AC1–7) | T0.7, T1.6 | ACs pass |
 | T2.2 | Frontend core-client (typed WS, reconnect, binary frames) + store | F40 client side | T1.6 | Reconnect test with a killed core |
-| T2.3 | Avatar window: XWayland, transparency, default position, drag + persist, scale, input-region click-through, non-focusable hint, all-workspaces, hide 30 min, frame caps | F02 (AC1–6) | T2.1 | ACs pass on the dev machine |
+| T2.3 | Production avatar window: character-only idle surface, XWayland transparency, default position, drag + persist, scale, input-region click-through, non-focusable hint, all-workspaces, indefinite/timed hide-minimise + every restore path, frame caps; no spike UI in production | F02 (AC1–8) | T2.1 | ACs pass on the dev machine; production screenshot/DOM audit contains no diagnostic panel |
 | T2.4 | `packages/avatar`: VRM + VRMA load via `/assets`, framing, `avatar.json` apply in place | F14 (AC1 load path) | T2.3, T0.12 | Colour change applies ≤ 1 s |
 | T2.5 | Idle behaviour | F17 | T2.4 | CPU limit met; blink distribution test |
 | T2.6 | State visuals (booting, idle, thinking, error) | F04 (AC1 partial) | T2.4 | Visual within 100 ms |
-| T2.7 | Context menu + tray | F03 (AC1–4) | T2.1 | ACs pass |
+| T2.7 | Complete native context menu + tray, including hide/restore, mic/voice controls, volume, workspace toggle and Quit; opt-in Show/Hide shortcut | F03 (AC1–6), F02 | T2.1 | ACs and recovery matrix pass |
 | T2.8 | Bubble (text streaming, truncation, auto-hide, placement) + type box | F05 (AC1, AC3), F06 (AC1–3) | T2.2 | ACs pass |
 | T2.9 | Conversations window | F07 (AC1–4) | T2.2 | ACs pass |
-| T2.10 | Configure shell + Models & accounts + Persona sections; comment-preserving edits; stale-write rejection | F08 (AC1–3, those sections), F19 UI | T2.2 | ACs pass |
+| T2.10 | Configure shell + Models & accounts, Persona and Shortcuts (Show/Hide now) sections; comment-preserving edits; stale-write rejection | F08 (AC1–3, those sections), F19 UI | T2.2 | ACs pass; Show/Hide shortcut can be added/removed |
 
 ### Phase 3 — Voice + performance
 
@@ -398,7 +399,7 @@ tests pass.
 | T3.7 | Performance engine: espeak G2P, IPA→viseme table, tiers A/B/D, shape rules, envelope | F15 (AC1) | T3.6 | Bilabial test passes |
 | T3.8 | `PerformancePlayer` + retarget maps + gapless scheduling on one AudioContext + autoplay unlock | F15 (AC2–3), F12 (AC2) | T3.7, T2.4 | ACs pass |
 | T3.9 | Expressions & gestures + sentiment fallback | F16 (AC1–3) | T3.8 | ACs pass |
-| T3.10 | Response modes + bubble speech sync + pause voice | F11, F05 (AC2) | T3.8 | ACs pass |
+| T3.10 | Response modes + bubble speech sync + pause voice + live output volume | F11, F12, F05 (AC2) | T3.8 | ACs pass |
 | T3.11 | Barge-in + PipeWire echo-cancel setup/remove UI + duck-and-gate fallback | F13 (AC1–3) | T3.3, T3.8 | ACs pass with speakers |
 | T3.12 | Lip-sync lab + golden export/load | F18 | T3.8 | A lab export passes as a golden |
 | T3.13 | Latency metrics + overlay | F36 (overlay) | T3.8 | p50/p95 shown; 04 §5 targets measured and recorded |
@@ -442,14 +443,14 @@ tests pass.
 | T6.3 | First-run onboarding | F35 | T6.1 | AC on a clean 24.04 VM |
 | T6.4 | Retention, clear history, settings export/import | F32 (AC2), F08 | T1.3 | ACs pass |
 | T6.5 | Diagnostics bundle | F36 (AC) | T1.5 | No secrets in the bundle |
-| T6.6 | Push-to-talk shortcut, autostart toggle UI, reduced motion, multi-monitor edge cases | F09, F01, F02 | T4.7 | Manual checklist passes |
+| T6.6 | Finish shortcut UX (Show/Hide, Stop, push-to-talk add/change/remove and cold start), autostart toggle UI, reduced motion, multi-monitor edge cases | F09, F01, F02 | T4.7 | Manual lifecycle/control matrix passes |
 | T6.7 | Error-UX pass: every 04 §4a and F-feature error path shows its specified message | 12 (all "Errors" sections) | — | A checklist of each error path is ticked |
 
 ### Phase 7 — Ship v1
 
 | ID | Task | Implements | Depends on | Done when |
 |----|------|-----------|------------|-----------|
-| T7.1 | Final `.deb` packaging (PyInstaller sidecar built on 24.04, Depends list §2.2, exclude the Agent SDK's bundled CLI) | F38 | all | Builds reproducibly in CI |
+| T7.1 | Final `.deb` packaging (PyInstaller sidecar built on 24.04, Depends list §2.2, exclude the Agent SDK's bundled CLI) + confirmed `--purge-user-data` flow for current-user files/autostart/shortcuts | F38 | all | Builds reproducibly; F38 complete-removal AC passes |
 | T7.2 | Licence review, generated `THIRD_PARTY_NOTICES.md` | F38, 03 §4.7 | T7.1 | Every bundled dependency listed with its licence |
 | T7.3 | Clean-VM smoke on 24.04 and 26.04 | F38 (AC) | T7.1 | AC passes |
 | T7.4 | README final (demo video, architecture, lip-sync lab section, latency table, permissions, roadmap with the extension "next"), optional static web demo of `packages/avatar` | 09 Phase 7 | T7.3 | Review checklist |

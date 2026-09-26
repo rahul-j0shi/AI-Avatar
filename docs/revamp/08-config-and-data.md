@@ -43,7 +43,11 @@ we generate from the pydantic models. Comments are allowed (JSONC) and parsed wi
   },
   "stt":  { "provider": "faster_whisper", "model": "small", "language": "auto", "vad": { "endSilenceMs": 700 } },
   "tts":  { "provider": "kokoro", "voice": "af_heart", "speed": 1.0 },
-  "ui":   { "responseMode": "speak+bubble", "bubbleHideAfterSec": 8, "avatar": { "position": null } },
+  "ui":   {
+    "responseMode": "speak+bubble", "bubbleHideAfterSec": 8,
+    "micMuted": false, "voicePaused": false, "outputVolume": 1.0,
+    "avatar": { "position": null, "scale": 1.0 }
+  },
   "agent": { "maxSteps": 8, "maxOutputTokens": 1024, "turnTimeoutSec": 120 }
 }
 ```

@@ -137,13 +137,20 @@ without a restart.
   - `--action talk` behaves like double-click.
   - `--action stop` behaves like F27.
   - `--action show` unhides.
+  - `--action hide` hides/minimises the avatar to the tray; `--action toggle` switches shown/hidden.
+  - `--action mute-mic` toggles microphone mute; `--action pause-voice` toggles voice pause.
   - `--action configure` opens F08.
+- `svara --volume N`, where `N` is 0–100, sets output volume without opening a window.
+- With no running instance, `talk`, `show`, `toggle` and `configure` launch Svara and perform the
+  action after the core is ready. `stop`, `hide` and `quit` return success without launching it;
+  `mute-mic`, `pause-voice` and `--volume` update persisted settings without leaving a process
+  running.
 - Exit (menu, tray, or `--action quit`) → graceful shutdown (01 §3a).
 - If the core crashes, the shell restarts it: 3 attempts with 1 s / 2 s / 5 s backoff, then shows
   "Core stopped — View logs / Restart" in the bubble.
 
-**In scope:** single instance; the CLI actions listed; autostart toggle (`~/.config/autostart`);
-crash restart; graceful shutdown; `booting` state.
+**In scope:** single instance; the CLI actions listed; cold-start action delivery; autostart toggle
+(`~/.config/autostart`); crash restart; graceful shutdown; `booting` state.
 
 **Out of scope:** multiple instances or profiles; system-wide (all users) autostart; background
 daemon without a window; remote control from another machine.
@@ -168,6 +175,10 @@ shutdown completes ≤ 5 s.
 3. Killing the core process → the avatar recovers to `idle` automatically.
 4. `kill -9` on the shell → no `svara_core` process remains after 2 s.
 5. Autostart on → the avatar appears after the next login. Off → the file is removed.
+6. With Svara stopped, `svara --action talk` launches exactly one instance and begins listening
+   after readiness; the Show/Hide shortcut likewise cold-starts and shows it.
+7. `svara --action quit` leaves no shell or core process; running it again while stopped is a
+   successful no-op.
 
 ---
 
@@ -177,6 +188,10 @@ shutdown completes ≤ 5 s.
 
 **Behaviour.**
 - A transparent, frameless, always-on-top XWayland window with no taskbar/dock entry.
+- **Idle surface = character only.** Its transparent window contains no persistent panel, dialog,
+  title bar, terminal, controls, statistics, debug text or opaque background. Only interaction-bound
+  UI may appear transiently: F04 state cues, F05 bubbles/tool chips, F06 type input and F24 approval.
+  Conversations and Configure are separate on-demand windows. Spike/benchmark controls never ship.
 - **Default position:** bottom-right of the primary monitor's work area, 16 px margin.
 - **Drag:** press + move > 4 px anywhere on the avatar body drags it. On release, the position
   (monitor id + x, y) is saved.
@@ -186,13 +201,15 @@ shutdown completes ≤ 5 s.
   everything else in the window passes clicks through (input shape region, 02 §1.2).
 - **Focus:** non-focusable, except while the type box (F06) or an approval bubble (F24) is open.
 - **Scale:** `ui.avatar.scale` from 0.5 to 2.0 (step 0.1) resizes the window and the avatar together.
-- **Hide for 30 min:** hides the window. It returns after 30 min, via the tray *Show*, or via
-  `--action show`.
+- **Hide/minimise:** hides the avatar indefinitely while the tray and core remain. It returns through
+  tray *Show*, the Show/Hide shortcut, `svara`, `--action show` or `--action toggle`.
+- **Hide for 30 min:** the same hidden state with a timer. It returns after 30 min or by any restore
+  path above.
 - **Show on all workspaces:** the avatar is visible on every GNOME workspace (sticky).
 - **Frame rate:** 30 fps when idle and not hovered, 60 fps while speaking, 0 fps while hidden.
 - `prefers-reduced-motion` → sway and bounce are disabled; blinking and lip sync remain.
 
-**In scope:** everything above.
+**In scope:** everything above, including the avatar-only production surface and every restore path.
 
 **Out of scope:** resizing by dragging edges; multiple avatars; docking or snapping to edges; showing
 over fullscreen apps (it may be covered by them); hiding from screen shares (impossible on GNOME
@@ -221,6 +238,11 @@ holds 60 fps.
 4. Typing in another app continues uninterrupted after double-clicking the avatar.
 5. Scale 2.0 and 0.5 both render without clipping.
 6. The measured idle CPU meets the limit.
+7. An idle production build screenshot contains only the rendered character over transparent pixels;
+   no spike panel, terminal, statistics, test controls or persistent speech box exists in its DOM or
+   application menu.
+8. Hide stops rendering and removes the avatar window; tray Show, the shortcut and both CLI restore
+   paths each bring the same instance back.
 
 ---
 
@@ -239,18 +261,22 @@ holds 60 fps.
 | Response mode ▸ Speak + bubble / Bubble only / Speak only | always | F11 (radio) |
 | Mute microphone | `voiceInput` on | toggles mic availability (a checkbox) |
 | Pause voice output | `voiceOutput` on | toggles speaking (a checkbox) |
+| Voice volume ▸ 100% / 75% / 50% / 25% / Mute | `voiceOutput` on | sets F12 playback volume |
 | Conversations | always | F07 |
 | Configure | always | F08 |
-| Hide for 30 min | always | F02 |
-| Exit | always | F01 |
+| Hide avatar | always | minimises to the tray (F02) |
+| Hide for 30 min | always | timed hide (F02) |
+| Show on all workspaces | always | toggles F02 workspace behaviour |
+| Quit Svara | always | fully exits (F01) |
 
-**Tray (AppIndicator):** Show/Hide · Talk · Configure · Exit.
+**Tray (AppIndicator):** Show/Hide · Talk · Stop (while busy) · Configure · Quit Svara.
 
 **In scope:** the items above, keyboard shortcuts shown in the menu, the tray.
 
 **Out of scope:** custom-styled menus; user-defined menu items; recent-conversation submenus.
 
-**Config & defaults:** none (the response mode and mute states live in `ui.*`).
+**Config & defaults:** `ui.micMuted` = false; `ui.voicePaused` = false;
+`ui.outputVolume` = 1.0 (range 0.0–1.0).
 
 **Errors & edge cases:** if the tray extension is disabled by the user, the menu still works, and
 the README says how to re-enable it.
@@ -264,6 +290,9 @@ the README says how to re-enable it.
 2. Stop appears only while busy.
 3. The tray Show brings back a hidden avatar.
 4. Exit from the tray shuts down cleanly (F01 AC4-style check: no leftover processes).
+5. Hide avatar removes only the avatar window, leaves the tray reachable and reduces its renderer to
+   0 fps; restoring does not start a second core.
+6. Volume choices, mic mute and voice pause show the correct checked state and survive restart.
 
 ---
 
@@ -421,23 +450,24 @@ reload?".
 | Section | Contents (v1, exhaustive) |
 |---------|---------------------------|
 | Models & accounts | F19: provider list, add/remove, API key entry (write-only), test connection, model per role, effort (Claude), subscription status |
-| Voice | F09/F10/F12: mic source, VAD sensitivity + end-silence, STT provider/model, TTS provider/voice/speed, preview, echo-cancel setup (F13) |
+| Voice | F09/F10/F12: mic mute, source, VAD sensitivity + end-silence, STT provider/model, TTS provider/voice/speed, output volume + pause, preview, echo-cancel setup (F13) |
 | Avatar looks | F14: `avatar.json` editor + live preview, import `.vrm`, reset |
 | Persona | F22: `persona.md` editor + "test in bubble" |
 | Skills | F29: list with toggles, new/edit/delete/import |
 | MCP servers | F28: `mcp.json` editor + per-server status and toggle |
 | Permissions | F24: mode selector, `permissions.json` editor, "Always allow" list (`permissions.local.json`) with delete, audit log |
 | Features | the 0.4 flag table as switches, plus every plugin's status (active / pending: reason / failed: reason / disabled) with *Retry* |
-| Shortcuts | F27/F09: Stop and push-to-talk bindings (GNOME custom shortcuts), add/remove |
+| Shortcuts | F01/F02/F27/F09: Show/Hide, Stop and push-to-talk bindings (GNOME custom shortcuts), add/change/remove; explains that Show/Hide and Talk also start Svara |
 | Privacy | F34: the live "what leaves this machine" table |
-| Advanced | logs, diagnostics bundle (F36), latency overlay toggle, model downloads (F33), history retention/clear (F32), settings export/import, open config folder, lip-sync lab (F18), reset everything |
+| Advanced | logs, diagnostics bundle (F36), latency overlay toggle, model downloads (F33), history retention/clear (F32), settings export/import, open config folder, lip-sync lab (F18), reset settings, **Remove my Svara data and integrations** (F38) |
 
 **Out of scope:** a settings search box; per-section undo history (the file is the source of truth;
 use export for backups); remote configuration.
 
 **Depends on:** F30, F31, F40.
 
-**Phase:** 2 (Models, Persona), 6 (the rest).
+**Phase:** 2 (Models, Persona, Shortcuts with Show/Hide), 3–4 (enable push-to-talk/Stop when their
+features land), 6 (the rest and final shortcut polish).
 
 **AC.**
 1. Every switch change is visible in the file with its comments preserved.
@@ -452,8 +482,8 @@ use export for backups); remote configuration.
 
 **Behaviour.**
 - **Start:** double-click the avatar, menu *Talk*, tray *Talk*, the push-to-talk shortcut, or
-  `--action talk`. **Stop:** VAD end-of-speech, a second double-click, Esc (when focused), *Stop*,
-  or no speech for 8 s.
+  `--action talk`. The shortcut and CLI action cold-start Svara if needed. **Stop:** VAD
+  end-of-speech, a second double-click, Esc (when focused), *Stop*, or no speech for 8 s.
 - **Capture:** a `pw-record` subprocess on the selected PipeWire source, 16 kHz mono s16le, 20 ms
   frames. It prefers `svara-ec-source` if present.
 - **Pre-roll:** the last 300 ms before speech onset is kept (ring buffer), so the first syllable
@@ -539,11 +569,13 @@ and then fixed as the regression bar).
 | Speak only | yes | hidden (except approvals and errors) | yes |
 
 `Pause voice output` (F03) temporarily forces *Bubble only* without changing the saved mode.
+`ui.outputVolume` applies to WebAudio playback in either speaking mode; 0 is silent but distinct from
+pause, so raising it resumes audible playback without changing response mode.
 
 **Out of scope:** per-conversation or per-app modes; automatic switching (e.g. when a meeting is
 detected).
 
-**Config & defaults:** `ui.responseMode` = `speak+bubble`.
+**Config & defaults:** `ui.responseMode` = `speak+bubble`; `ui.outputVolume` = 1.0 (0.0–1.0).
 
 **Depends on:** F05, F12, F16.
 
@@ -565,7 +597,8 @@ detected).
 - Speech text normalisation: numbers, dates and common abbreviations are expanded; URLs become "a
   link"; file paths become "the file <name>"; code blocks are skipped; emoji are dropped.
 - Audio (PCM) + the performance segment go to the avatar surface, which plays them gaplessly on one
-  `AudioContext` (03 §5).
+  `AudioContext` (03 §5). A final gain node applies `ui.outputVolume` live without disturbing the
+  playback/performance clock.
 
 **In scope (adapters):** `kokoro` (local, default, our onnxruntime runner on the timestamped export, 03 §4.8), `elevenlabs` (cloud),
 `azure_tts` (cloud), `openai_tts` (cloud), `coqui` (local, optional, the maintained `coqui-tts` fork).
@@ -1327,7 +1360,8 @@ network firewalling.
 4. Voice: pick a TTS voice and preview it (triggers the model download, F33).
 5. Persona name.
 6. Permissions mode (read-only preselected), plus an explanation.
-7. Shortcuts: add Stop and push-to-talk (F27).
+7. Shortcuts: optionally add/rebind Show/Hide, Stop and push-to-talk; explain that Show/Hide and
+   push-to-talk also launch Svara when it is not running (F01/F02/F09/F27).
 8. Done: the avatar greets you.
 
 **Out of scope:** tutorials or tours beyond these steps; importing settings from other assistants.
@@ -1397,7 +1431,13 @@ may get a static web demo, 09 Phase 7).
 - It installs the app, the `.desktop` file, the icon, `espeak-ng` (dependency), licences and
   `THIRD_PARTY_NOTICES.md`.
 - Released on GitHub Releases with SHA-256 checksums.
-- Uninstall removes the app; user data is removed only by `apt purge` or by *Reset everything*.
+- Ubuntu Software and `sudo apt remove svara` uninstall the package and leave no Svara process.
+- A normal package uninstall deliberately keeps per-user data. Debian maintainer scripts do not
+  delete files or dconf keys in users' home directories. For a complete current-user removal, first
+  use Configure → Advanced → *Remove my Svara data and integrations* or
+  `svara --purge-user-data`; after an explicit confirmation listing the paths, it stops Svara and
+  removes its autostart entry, GNOME shortcuts and XDG config/cache/state/data. Then uninstall the
+  package (`sudo apt purge svara` also removes package-owned configuration).
 
 **Out of scope:** Snap, Flatpak, PPA/APT repository, auto-update, code signing (post-v1 options),
 AppImage as a supported artefact (it may be published as "unsupported").
@@ -1406,8 +1446,9 @@ AppImage as a supported artefact (it may be published as "unsupported").
 
 **Phase:** 7 (a pre-release `.deb` at v0.5).
 
-**AC.** Install → run → uninstall on clean 24.04 and 26.04 VMs leaves no running process and works
-offline in demo mode.
+**AC.** Install → run → perform the documented complete-removal flow on clean 24.04 and 26.04 VMs:
+no running process, user file, autostart entry, Svara-created shortcut or package file remains.
+Normal package uninstall is separately tested to retain user data.
 
 ---
 

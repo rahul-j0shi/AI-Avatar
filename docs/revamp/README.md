@@ -106,6 +106,10 @@ later drive a browser extension; that is planned for, not built.
   Phase 7.
 - **Feature scope:** [12 — Feature specification](12-feature-specification.md) is the authoritative
   list of what v1 does and doesn't do.
+- **Desktop UX:** the production desktop surface is only the floating character on transparency.
+  Speech, approval, error and type UI is transient; Configure and Conversations are separate
+  on-demand windows; spike controls, terminals and stats never ship. The complete start/hide/mute/
+  volume/quit/uninstall recovery matrix is in 02 §3.1.
 
 ## Open questions
 

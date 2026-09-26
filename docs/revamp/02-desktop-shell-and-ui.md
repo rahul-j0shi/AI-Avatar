@@ -27,7 +27,7 @@ explicit decision below.
 |------|-------------------------------------|----------------------|
 | **Position + always-on-top + drag** | The **avatar window runs through XWayland** (`GDK_BACKEND=x11` for the avatar process). Mutter honours EWMH hints for X11 clients (`_NET_WM_STATE_ABOVE`, move requests, `_NET_WM_MOVERESIZE` drag) | That Mutter 46 and 50 keep an XWayland window on top and at our position, and that drag works |
 | **Click-through on transparent areas** | Set a GTK **input shape region** (`gtk_widget_input_shape_combine_region`, which becomes an XShape input region) covering only the avatar silhouette box, the bubble and popovers. Clicks outside it pass through natively. **No cursor polling**, which wouldn't work anyway: under XWayland the global cursor position is stale while the pointer is over Wayland-native windows | That the input region updates cleanly when the bubble appears or disappears |
-| **Global hotkeys** (Stop, push-to-talk) | Portable path for 24.04 *and* 26.04: register **GNOME custom keyboard shortcuts** (gsettings `custom-keybindings`) that run `svara --action stop` / `--action talk`. The single-instance plugin forwards the action to the running app. Onboarding adds them with consent and shows them in Configure. The GlobalShortcuts portal (26.04) is a later improvement | End-to-end latency of the hotkey → action (< 200 ms) |
+| **Global hotkeys** (Show/Hide, Stop, push-to-talk) | Portable path for 24.04 *and* 26.04: register **GNOME custom keyboard shortcuts** (gsettings `custom-keybindings`) that run `svara --action toggle` / `--action stop` / `--action talk`. `toggle` and `talk` start Svara when it is not already running; otherwise the single-instance plugin forwards the action. Shortcuts are opt-in, rebindable and removable in Configure. The GlobalShortcuts portal (26.04) is a later improvement | Cold-start and running-instance behaviour; hotkey → action latency (< 200 ms after the app is ready) |
 | **Screenshots of other apps** | **xdg-desktop-portal Screenshot** (`interactive=false`) through D-Bus from the core. GNOME asks the user once and remembers the grant in its permission store. An XWayland app using `mss` would only see X11 windows | Whether GNOME 46 and 50 remember the grant, and the capture latency |
 | **Input control (computer use)** | **xdg-desktop-portal RemoteDesktop** (with ScreenCast for the screen), with `persist_mode` so the user consents once per grant. No `ydotool`/uinput (that needs root-level device access) | The consent flow and restore-token reuse on both releases |
 | **Window list / active app / focus** | **AT-SPI** accessibility bus, spoken over D-Bus with `dbus-fast` (no PyGObject: it has no wheels and is awkward to bundle), which works on Wayland for GTK/Qt/Chromium/Electron apps. "Focus app X" = re-launch its `.desktop` entry (`gio launch`); GNOME brings a running single-instance app to the front. Arbitrary window raising is not possible on Wayland and is documented as a limitation | Coverage of common apps (Firefox, Chrome, VS Code, Files, Terminal) |
@@ -96,7 +96,7 @@ Prefer **Tauri** if it meets all of these, and pick **Electron** otherwise. Eith
 |------|-----------|---------------|
 | Screenshot | `screen.capture` tool | Screenshot portal: GNOME dialog on first use, remembered |
 | Remote desktop | `input.*` computer-use tools | RemoteDesktop portal: consent dialog, remembered with a restore token |
-| Keyboard shortcuts | Stop / push-to-talk hotkeys | Writes GNOME custom shortcuts (gsettings) after the user clicks *Add* |
+| Keyboard shortcuts | Show/Hide, Stop and push-to-talk hotkeys | Writes GNOME custom shortcuts (gsettings) after the user clicks *Add*; each can be changed or removed |
 | Echo cancellation | Barge-in on speakers | PipeWire drop-in config after the user clicks *Enable* |
 | Autostart | Launch at login | Writes a `.desktop` file when the toggle is turned on |
 
@@ -112,12 +112,20 @@ permissions, MCP and avatar configs for free.
 
 | Window | Properties | Contents |
 |--------|-----------|----------|
-| **Avatar** | transparent, frameless, always-on-top, skip-taskbar, not resizable, ~360×480 logical px | 3D avatar canvas, speech bubble, status ring, type-in box, approval bubbles |
+| **Avatar** | transparent, frameless, always-on-top, skip-taskbar, not resizable, ~360×480 logical px | The 3D character; only transient speech/status, type-in and approval UI when the active task requires it |
 | **Conversations** | normal window, opened from the menu, remembers size | Conversation list + full transcript (tool calls collapsed) |
 | **Configure** | normal window with a modal feel (focus-grabbing, closes with Esc), opened from the menu | Settings panel, see §6 |
 
 Only the Avatar window exists at startup. The other two are created on demand and destroyed on close,
 so they cost nothing when unused.
+
+**Production-surface invariant:** while idle, the desktop shows **only the character on a transparent
+background**. There is no card, dialog, title bar, terminal, toolbar, stats panel, FPS counter, test
+button or persistent status text around it. A speech bubble, approval prompt, error, tool chip or
+type box may appear only while that interaction needs it, then disappears. Benchmark controls and
+diagnostic measurements belong to development/spike builds and must be unreachable and absent from
+the production bundle. Conversations and Configure are separate, ordinary windows opened only on
+request; they are never embedded beside the avatar.
 
 ## 3. Avatar window behaviour
 
@@ -147,21 +155,48 @@ so they cost nothing when unused.
   - New conversation
   - Response mode ▸ Speak + bubble · Bubble only · Speak only
   - Mute microphone / Pause voice output (toggles)
+  - Voice volume ▸ 100% · 75% · 50% · 25% · Mute
   - Conversations
   - Configure
-  - Hide for 30 min (useful before screen sharing) / Show on all workspaces
-  - Exit
+  - Hide avatar (minimise to tray) / Hide for 30 min (useful before screen sharing)
+  - Show on all workspaces
+  - Quit Svara
+- **Hide/minimise:** because the frameless avatar deliberately has no taskbar entry or title-bar
+  button, "minimise" means hide the avatar window while Svara remains available from its tray icon.
+  Restore it with tray *Show*, the Show/Hide shortcut, `svara`, `svara --action show`, or
+  `svara --action toggle`. Hiding stops rendering (0 fps) but does not cancel a running turn.
 - **Size:** `ui.avatar.scale` (0.5–2.0) resizes the window and the framing together. The window
   size is derived from the scale; it is not a fixed 360×480.
 - **Visual states** so the user always knows what it's doing: listening (mic glow; the mic is
   *only* open while this glow or the speaking state with barge-in is on), thinking, speaking, acting
   (tool chip), awaiting approval (bubble), error (bubble + brief `sad`), booting/core down (greyed
   avatar + tooltip).
-- **Tray icon** (Phase 2, because it is the recovery path if the avatar is hidden or off-screen): Show/Hide, Talk, Configure, Exit, so the app stays reachable if the
+- **Tray icon** (Phase 2, because it is the recovery path if the avatar is hidden or off-screen): Show/Hide, Talk, Configure, Quit Svara, so the app stays reachable if the
   avatar is hidden.
-- **Global hotkeys** (through GNOME custom shortcuts, §1.2): **Stop** (e.g. `Ctrl+Alt+.`) ships in
-  **Phase 4**, together with desktop tools, because a kill switch must exist before the assistant can
-  act. Push-to-talk (e.g. `Ctrl+Alt+Space`) ships in Phase 6. Both are rebindable in Configure.
+- **Global hotkeys** (through GNOME custom shortcuts, §1.2): Show/Hide is available with the Phase 2
+  desktop presence; **Stop** (suggested `Ctrl+Alt+.`) ships in Phase 4 together with desktop tools,
+  because a kill switch must exist before the assistant can act; push-to-talk (suggested
+  `Ctrl+Alt+Space`) ships with voice. Show/Hide and push-to-talk can cold-start Svara. All are opt-in,
+  rebindable and removable in Configure.
+
+### 3.1 Control and recovery contract
+
+| Intent | Avatar/menu or tray | Keyboard | Terminal | Result |
+|--------|---------------------|----------|----------|--------|
+| Start / restore | Tray **Show** | Show/Hide | `svara` or `svara --action show` | Starts if needed, then shows the avatar |
+| Talk | **Talk** | Push-to-talk | `svara --action talk` | Starts if needed, then listens |
+| Minimise / hide | **Hide avatar** / tray **Hide** | Show/Hide | `svara --action hide` or `toggle` | Hides only the avatar; tray and core remain |
+| Stop work | **Stop** | Stop | `svara --action stop` | Cancels the current turn and audio |
+| Turn input off | **Mute microphone** | — | `svara --action mute-mic` | No listening until unmuted |
+| Turn output down/off | **Voice volume** / **Pause voice output** | — | `svara --volume 0..100` / `--action pause-voice` | Changes playback level or temporarily suppresses speech |
+| Settings | **Configure** | — | `svara --action configure` | Opens the separate Configure window |
+| Fully stop | **Quit Svara** | — | `svara --action quit` | Shell and core exit; no background process remains |
+| Do not start at login | Configure → Features | — | — | Removes Svara's autostart entry |
+| Remove from computer | Advanced → **Remove my Svara data and integrations**, then Ubuntu Software | — | `svara --purge-user-data`, then `sudo apt purge svara` | Removes per-user data/integrations, then the package (F38) |
+
+Mute, pause and volume are independent: muting closes microphone capture; pausing voice keeps the
+saved response mode but temporarily answers in the bubble; volume controls playback from 0–100%.
+None of these silently changes whether Svara launches at login.
 
 ## 4. Speech bubble (not a chat window)
 
@@ -194,14 +229,15 @@ validated against the pydantic JSON Schema and applied live through the kernel (
 | Section | Contents |
 |---------|----------|
 | **Models & accounts** | Providers list (add/remove, test connection), API keys (saved to keychain), model per role (`main`, optional `vision`), Claude effort, "Claude (your subscription)" status |
-| **Voice** | Voice input on/off, mic source (echo-cancelled source recommended), STT provider, VAD sensitivity, voice output on/off, TTS provider + voice + speed, preview button |
+| **Voice** | Voice input on/off, mic mute/source (echo-cancelled source recommended), STT provider, VAD sensitivity, voice output on/off, output volume/pause, TTS provider + voice + speed, preview button |
 | **Avatar looks** | Monaco editor on `avatar.json` (schema-validated) with a live preview pane; import VRM file; reset to default (see 03) |
 | **Persona** | Markdown editor for `persona.md` (name, personality, tone, do/don't) with a "test in bubble" button |
 | **Skills** | List of installed skills (toggle each), "New skill" (template `SKILL.md`), editor, import from folder |
 | **MCP servers** | Monaco editor on `mcp.json` (Claude-Desktop-compatible) + live status per server (connected, tools count, error) + per-server toggle |
 | **Permissions** | Monaco editor on `permissions.json` + mode selector (read-only / ask / custom) + audit log table |
 | **Features** | One switch per feature flag (voice input, voice output, lip sync, expressions, gestures, desktop tools, MCP, skills, bubble auto-hide, telemetry-to-local-log…) |
-| **Advanced** | Core logs, latency overlay toggle, open config folder, reset everything |
+| **Shortcuts** | Add/change/remove Show/Hide, Stop and push-to-talk GNOME shortcuts; cold-start behaviour is explained |
+| **Advanced** | Core logs, latency overlay toggle, open config folder, reset settings, remove current-user Svara data and integrations |
 
 ## 7. Frontend structure
 

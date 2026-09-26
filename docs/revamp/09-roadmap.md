@@ -46,6 +46,8 @@ Tasks
       always-on-top window through XWayland rendering a VRM with three-vrm; drag; input-region
       click-through; WebAudio playback. Measured on the **primary dev machine (Ubuntu 24.04,
       Intel/AMD graphics, default Wayland session)**; functional check on Ubuntu 26.04 in a VM.
+      The spike may expose benchmark controls and stats, but they are development-only evidence and
+      are not the Phase 2 production UX.
       *Gate:* the measured criteria in 02 §1.3 decide Tauri vs Electron.
 - [ ] **Spike B (lip sync):** the minimal Kokoro runner (03 §4.8) synthesises 5 sentences from the
       timestamped export; convert `pred_dur` to phoneme times; hand-build a viseme track; play it on
@@ -115,14 +117,18 @@ Tasks
 - [ ] Protocol topics/routing, `snapshot` on connect, reconnect, `/assets` route (01 §4).
 - [ ] Assistant state machine incl. `awaiting_approval` and "new input cancels the turn" (01 §4).
 - [ ] Comment-preserving config editing from the panel (02 §7).
-- [ ] Avatar window per 02 §3: bottom-right default, drag + persist, gesture recogniser, click-through
-      poll, native context menu (Talk, Type, Response mode, Conversations, Configure, Exit).
+- [ ] Avatar window per 02 §3: **only the character while idle** (no panel/stats/terminal),
+      bottom-right default, drag + persist, gesture recogniser, input-shape click-through,
+      hide/minimise + restore, native context menu (Talk, Type, voice/mic/volume controls, Response
+      mode, Conversations, Configure, Hide, Quit).
 - [ ] `packages/avatar`: VRM loading from `avatar.json`, framing, idle layer (blink, breathe, sway,
       saccades, cursor gaze), state-driven poses (idle / thinking / acting / error).
 - [ ] Bubble (streaming text, auto-hide, "…more"), type-in box.
 - [ ] Conversations window (list + transcript from event log projections).
-- [ ] Tray icon (Show/Hide, Talk, Configure, Exit) as the recovery path (12 F03).
-- [ ] Configure window shell with *Models & accounts* and *Persona* sections working.
+- [ ] Tray icon (Show/Hide, Talk, Stop while busy, Configure, Quit) and opt-in Show/Hide shortcut as
+      recovery paths (12 F01–F03); CLI actions work both from a running instance and cold start.
+- [ ] Configure window shell with *Models & accounts*, *Persona* and *Shortcuts* sections working;
+      Show/Hide can be added now, while Stop/push-to-talk enable when their features land.
 
 **Exit:** install from a dev build, type a question, and watch the answer stream into the bubble
 while the avatar looks thoughtful. Dragging, the menu and Exit all work. It survives a core crash.
@@ -212,10 +218,11 @@ Tasks
       Skills, MCP, Permissions (editor + mode + audit), Features, Advanced.
 - [ ] First-run onboarding: pick a provider (or local Ollama), test the mic, pick a voice, set the
       persona name, choose the permissions mode.
-- [ ] Push-to-talk hotkey, "hide for 30 min", multi-monitor edge cases, reduced motion,
+- [ ] Finish Show/Hide, Stop and push-to-talk shortcut configuration (add/change/remove and cold
+      start), "hide for 30 min", multi-monitor edge cases, reduced motion,
       battery-friendly frame caps.
 - [ ] Error UX: every failure has a visible, human message on the avatar and a detail in the logs.
-- [ ] Launch at login toggle; "hide for 30 min" menu item; avatar scale.
+- [ ] Launch at login toggle; indefinite and 30-minute hide; output volume/pause; avatar scale.
 - [ ] Settings export/import; diagnostics bundle (logs + config without secrets + plugin statuses)
       for bug reports.
 
@@ -244,8 +251,9 @@ Tasks
       licence and source pointer; asset licences.
 - [ ] Measure and publish: installer size, idle RAM/CPU, RAM with local models, cold start, latency
       p50/p95.
-- [ ] Smoke test on clean Ubuntu 24.04 and 26.04 installs (a VM + one real machine with NVIDIA): install → onboard → voice turn → tool
-      with approval → uninstall leaves no core process behind.
+- [ ] Smoke test on clean Ubuntu 24.04 and 26.04 installs (a VM + one real machine with NVIDIA):
+      install → onboard → voice turn → tool with approval → documented complete-removal flow leaves
+      no process, user data, autostart entry, shortcut or package file behind.
 
 **Exit:** a tagged `v1.0.0` release with installers; README a recruiter can understand in 2 minutes.
 
