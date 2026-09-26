@@ -458,7 +458,7 @@ use export for backups); remote configuration.
   frames. It prefers `ai-avatar-ec-source` if present.
 - **Pre-roll:** the last 300 ms before speech onset is kept (ring buffer), so the first syllable
   isn't lost.
-- **VAD:** Silero. Speech starts after ≥ 200 ms of voice probability above the threshold. Speech ends
+- **VAD:** Silero (ONNX model via onnxruntime; no PyTorch). Speech starts after ≥ 200 ms of voice probability above the threshold. Speech ends
   after `endSilenceMs` of silence.
 - One utterance = one turn. Continuous conversation mode is out of scope.
 
@@ -567,7 +567,7 @@ detected).
 - Audio (PCM) + the performance segment go to the avatar surface, which plays them gaplessly on one
   `AudioContext` (03 §5).
 
-**In scope (adapters):** `kokoro` (local, default, via `kokoro-onnx`), `elevenlabs` (cloud),
+**In scope (adapters):** `kokoro` (local, default, our onnxruntime runner on the timestamped export, 03 §4.8), `elevenlabs` (cloud),
 `azure_tts` (cloud), `openai_tts` (cloud), `coqui` (local, optional, the maintained `coqui-tts` fork).
 The voice, speed (0.7–1.3) and `voicesByLanguage` map (03 §4.6).
 
@@ -575,7 +575,7 @@ The voice, speed (0.7–1.3) and `voicesByLanguage` map (03 §4.6).
 streaming (post-v1, 03 §3); output device selection (the system default is used).
 
 **Config & defaults:** `tts.provider` = `kokoro`; `tts.voice` = the provider default; `tts.speed` =
-1.0.
+1.0; `tts.defaultLanguage` = `en` (the G2P language for typed turns, 03 §4.6); `tts.voicesByLanguage` = {}.
 
 **Limits:** local TTS first audio for a 10-word sentence ≤ 400 ms on the dev machine (measured, then
 fixed as the regression bar).
@@ -674,7 +674,7 @@ language.
 
 **Behaviour.** As specified in 03 §3–§5: timing tiers A/B/D (C is post-v1 unless Spike B requires
 it), IPA → 15 visemes, shape rules, amplitude envelope, retarget maps, coarticulation and smoothing in
-the renderer. G2P: misaki for English, the espeak-ng subprocess for other languages, Tier D for
+the renderer. G2P: the espeak-ng subprocess for every language, Tier D for
 anything uncovered.
 
 **In scope:** retarget maps `vrm-basic` (default) and `vrm-extended` (used if the model has the
@@ -788,7 +788,7 @@ screen recorder).
 
 | Provider id | Adapter | Auth | Notes |
 |-------------|---------|------|-------|
-| `claude_subscription` | AgentBackend (05 §3.2) | Your Claude Code login, done in a terminal | Default when a logged-in Claude Code is detected |
+| `claude_subscription` | AgentBackend (05 §3.2) | Your own installed Claude Code (`claude` on PATH), logged in by you in a terminal | Default when a logged-in Claude Code is detected |
 | `anthropic` | ChatModel (05 §2a) | API key | Default model `claude-opus-5` |
 | `openai` | `openai_compat` | API key | |
 | `openrouter` | `openai_compat` | API key | |
@@ -1267,7 +1267,7 @@ backup; importing conversations; storing audio.
 
 **Behaviour.**
 - Silero VAD is bundled.
-- faster-whisper `small` (int8) and the Kokoro ONNX model + voices download **on first use** into
+- faster-whisper `small` (int8) and the Kokoro timestamped ONNX export (fp16) + voices file download **on first use** into
   `$XDG_CACHE_HOME/ai-avatar/models/`.
 - Pinned by revision + SHA-256 (a manifest in the repo); resumable, with retry and progress on the
   avatar and in Advanced; refuses on a hash mismatch.
@@ -1438,7 +1438,7 @@ from outside the built-in registry; nested isolated contexts.
 
 **Purpose.** The single contract between the core and any surface (01 §4).
 
-**In scope:** the v1 message catalogue in 01 §4; the token handshake; topics; `snapshot`; reconnect;
+**In scope:** the v1 message catalogue and payloads in 13 §7 (overview in 01 §4); the token handshake; topics; `snapshot`; reconnect;
 the binary audio framing; the `/assets` route; protocol version integer; pydantic → TS type
 generation with a CI drift check.
 

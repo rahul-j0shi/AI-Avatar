@@ -178,7 +178,7 @@ the permission model.
 | Concern | Decision |
 |---------|----------|
 | Environment | The shell starts the avatar window through XWayland (`GDK_BACKEND=x11`, 02 §1.2) and applies the WebKitGTK/NVIDIA workaround env (`WEBKIT_DISABLE_DMABUF_RENDERER=1`) only when an NVIDIA proprietary driver is detected |
-| CLI actions | `ai-avatar --action stop \| talk \| show` forwards to the running instance (single-instance plugin). GNOME custom shortcuts call this (02 §1.2) |
+| CLI actions | `ai-avatar --action talk \| stop \| show \| configure \| quit` forwards to the running instance (single-instance plugin). GNOME custom shortcuts call this (02 §1.2) |
 | Start | The shell generates a random 256-bit token and spawns the core sidecar with it in an env var (`AVATAR_TOKEN`). The core binds `127.0.0.1:0` and prints one JSON line `{"port": N, "pid": P, "protocol": 1}` on stdout. The shell reads it and gives port + token to its webviews through a Tauri command (`get_core_endpoint`), never in a URL |
 | Readiness | The shell shows the avatar in a `booting` state until the core answers `hello`. Core startup target: under 1.5 s to `hello`. Heavy models load lazily (below) |
 | Orphans | The core exits when its stdin closes (the shell holds the pipe), so a crashed shell never leaves a zombie core |
@@ -204,7 +204,8 @@ in Phase 3 and published.
 - **Single source of truth for types:** messages are pydantic models in `core/protocol/messages.py`.
   CI exports their JSON Schema and generates `packages/protocol/src/messages.ts`, and fails on drift.
 
-Message catalogue (v1):
+Message catalogue (v1). **The authoritative field-level payload reference is 13 §7**; this table is
+the overview:
 
 | Direction | Type | Purpose |
 |-----------|------|---------|

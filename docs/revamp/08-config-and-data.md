@@ -133,7 +133,7 @@ CREATE INDEX events_kind ON events(kind, ts);
 |-------|-------------|------------|
 | Silero VAD (onnx) | ~2 MB | Voice input. Small enough to **bundle** |
 | faster-whisper `small` (int8) | ~250–500 MB | Local STT (default) |
-| Kokoro (onnx) + voices | ~100–350 MB (depending on precision) | Local TTS (default) |
+| Kokoro timestamped ONNX (fp16) + voices file | ~163 MiB + voices | Local TTS (default), Tier A timing |
 | espeak-ng | few MB | G2P fallback, bundled as an executable (03 §4.7) |
 
 *The sizes are indicative; Spike C records the real numbers.*

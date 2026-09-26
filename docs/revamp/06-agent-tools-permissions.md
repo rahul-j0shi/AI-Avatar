@@ -139,7 +139,7 @@ The **exact tool list, arguments and limits are in 12 F25**; this section explai
 | Tool group | Implementation |
 |-----------|----------------|
 | `fs.*` | Python stdlib; `fs.trash` uses the freedesktop Trash spec (`gio trash`) |
-| `screen.capture` | xdg-desktop-portal **Screenshot** over D-Bus (`jeepney`/`dbus-fast`), consent remembered by GNOME. The avatar hides for the capture frame |
+| `screen.capture` | xdg-desktop-portal **Screenshot** over D-Bus (`dbus-fast`), consent remembered by GNOME. The avatar hides for the capture frame |
 | `apps.*` | Installed apps from XDG `.desktop` entries; running and focused apps from **AT-SPI** |
 | `app.open` / `url.open` | `gio launch <desktop-file>` / `xdg-open` |
 | `notify` | `org.freedesktop.Notifications` over D-Bus |

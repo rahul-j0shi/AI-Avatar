@@ -152,7 +152,7 @@ Each TTS adapter declares what alignment it can provide. The engine uses the bes
 
 | Tier | Source | Examples | Quality |
 |------|--------|----------|---------|
-| A | **Phoneme timings** from the TTS itself | Kokoro (phonemes from its G2P + predicted durations / token timestamps: *verify granularity in the Phase 0 spike*), Azure TTS viseme events | Best |
+| A | **Phoneme timings** from the TTS itself | Kokoro (`pred_dur` from the timestamped ONNX export, §4.8), Azure TTS viseme events | Best |
 | B | **Word or character timings** + our G2P | ElevenLabs `with-timestamps` (character alignment), Cartesia (word timestamps) | Good |
 | C | **Text only**, then G2P + forced alignment against the audio | OpenAI TTS, Coqui | Good; costs CPU |
 | D | **Audio only**: spectral vowel estimation (formant/MFCC-based), computed **in the core** over the finished sentence audio, so it uses the same data model | Anything, including raw audio | Fallback: vowels only, no closures |
@@ -165,7 +165,7 @@ chosen default TTS gives no usable timing, in which case Tier C moves into Phase
 
 ```
 sentence text ──► normalise (numbers, abbreviations, emoji → words)
-              ──► G2P  (misaki for English, espeak-ng for other languages, see §4.6)
+              ──► G2P  (espeak-ng subprocess for every language, see §4.6)
               ──► phoneme sequence (IPA)
 timing source ──► phoneme timeline [(phoneme, start_ms, end_ms)]
                    · Tier A: direct
@@ -240,9 +240,11 @@ The 15 internal visemes map to whatever the model has. This is data, not code:
   wrote or spoke in". The persona can override it, as free text in `persona.md`. STT auto-detects the
   spoken language.
 - **Lip sync works for any language** because the viseme table maps **IPA phonemes**, not letters.
-  English uses misaki (best quality). Every other language goes through espeak-ng's G2P (100+
-  languages) using the language code from STT, or from a cheap text language-ID for typed input. If a
-  language isn't covered at all, Tier D (audio-only) still moves the mouth.
+  G2P for every language, English included, is the **`espeak-ng` executable** as a subprocess
+  (`espeak-ng -q -x --ipa -v <lang>`, 100+ languages). It is the same G2P Kokoro's own tooling uses.
+  **Which language:** for a spoken turn, the language STT detected; for a typed turn,
+  `tts.defaultLanguage` (default `en`). No language-ID library in v1. If espeak-ng doesn't cover the
+  language, Tier D (audio-only) still moves the mouth.
 - **Voice:** the TTS voice is whatever the user picked. An optional `tts.voicesByLanguage` map
   (`{"de": "…", "es": "…"}`) picks a matching voice when one exists. If the active TTS can't speak the
   language, that turn falls back to bubble-only with a small note, so we never read text aloud with the
@@ -251,20 +253,34 @@ The 15 internal visemes map to whatever the model has. This is data, not code:
 
 ### 4.7 Licences to watch
 
-The repo is **Apache-2.0**. espeak-ng and the `phonemizer` package are **GPL-3.0** (`phonemizer`
-loads the espeak library in-process, so we don't use it). Calling the `espeak-ng` executable as a
-separate process is "mere aggregation" and keeps the app Apache-2.0. The installer must still ship
-espeak-ng's licence text and say where its source is. misaki and Kokoro are Apache-2.0. Note that
-every non-English language goes through the espeak-ng subprocess (§4.6). A full licence review of every bundled dependency is a
-Phase 7 task (`THIRD_PARTY_NOTICES.md`, generated).
+The repo is **Apache-2.0**, and no GPL code is loaded into our process:
 
-### 4.8 Kokoro packaging choice
+- `espeak-ng` is **GPL-3.0**. We run the `espeak-ng` **executable** as a separate process (installed as
+  a `.deb` dependency), which is aggregation, not linking. The installer ships its licence text and
+  a source pointer.
+- **Not used, on purpose:** `phonemizer` / `phonemizer-fork` / `espeakng-loader` (they load the GPL
+  espeak library **in-process**), `kokoro-onnx` (which depends on them, and also requires Python
+  < 3.14), and `misaki` (which requires Python < 3.13 and pulls in `phonemizer-fork` + spaCy).
+- Kokoro-82M model weights and the timestamped ONNX export are Apache-2.0. The Silero VAD model is
+  MIT. faster-whisper is MIT, and Whisper weights are MIT.
+- The full generated review (`THIRD_PARTY_NOTICES.md`) is a Phase 7 task.
 
-The reference `kokoro` package depends on **PyTorch**, which adds gigabytes to a PyInstaller bundle.
-`kokoro-onnx` runs on onnxruntime and is much smaller. Spike B must confirm which of the two exposes
-the timing information we need (phoneme durations or token timestamps). Preferred order:
-`kokoro-onnx` with durations → `kokoro-onnx` + forced alignment (Tier C) → `kokoro` (torch) only if
-nothing else gives good timing.
+### 4.8 Kokoro: our own thin runner (decided, verified Sep 2026)
+
+- **Model:** the **timestamped** Kokoro v1.0 ONNX export
+  (`onnx-community/Kokoro-82M-v1.0-ONNX-timestamped`, fp16, ~163 MiB, Apache-2.0). Unlike the plain
+  export, it also outputs **`pred_dur`**, the predicted duration of every phoneme token in decoder
+  frames. That is **Tier A timing** for free.
+- **Runner (`providers/tts/kokoro.py`, ~150 lines):**
+  1. espeak-ng IPA for the sentence.
+  2. Map IPA symbols to Kokoro token ids with the model's `vocab` (from its `config.json`).
+  3. Run onnxruntime with the tokens, the voice style vector (from the voices file, indexed by token
+     count) and speed.
+  4. Return 24 kHz audio plus `(phoneme, start_ms, end_ms)` from `pred_dur` × frame hop.
+- **Why not `kokoro-onnx` or `kokoro`:** Python < 3.14 pin and in-process GPL (§4.7), or PyTorch
+  (gigabytes).
+- **Spike B** confirms the frame-hop constant and the timing accuracy against the audio, using the
+  lab's envelope comparison.
 
 ## 5. Renderer playback (`packages/avatar`)
 

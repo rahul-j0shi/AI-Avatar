@@ -24,7 +24,7 @@ remain open. Re-run this review at the end of every phase.
 | R14 | Use DeepSeek's spatiotemporal composability for design decisions | 01 §2 | 1 | Covered |
 | R15 | Everything decoupled; same thing works in the browser via extension | 01 §1, §4; 10 | post-v1 | Covered (door kept open in v1) |
 | R16 | Configure the extension from the desktop panel | 10 §3.8 | post-v1 | Covered |
-| R17 | Claude login mandatory, same account, for extension | 10 §3.2, 05 §4 | post-v1 | **Changed**: pairing code, because third-party apps may not offer claude.ai login (open question 1) |
+| R17 | Claude login mandatory, same account, for extension | 10 §3.2, 05 §4 | post-v1 | **Decided (changed)**: one-time pairing code, because third-party apps may not offer claude.ai login |
 | R18 | Permissions: default read-only; JSON editor for desktop; browser like Claude for Chrome | 06 §3, 10 §3.4 | 4 | Covered |
 | R19 | Double-click → listen; type area; choose speak / bubble | 02 §3–5, 04 §2 | 2–3 | Covered |
 | R20 | Bubble shows current message only; Conversations shows everything | 02 §4, 02 §2 | 2 | Covered |
@@ -39,6 +39,8 @@ remain open. Re-run this review at the end of every phase.
 | R29 | Don't focus on language; reply in the input language | 03 §4.6 | 1, 3 | Covered |
 | R30 | No dates or durations; sequence, scope and clarity only | 09 | — | Covered |
 | R31 | Every feature specified in detail with hard boundaries | 12 | all | Covered |
+| R32 | Implementation-ready: verified dependencies, conventions, config/protocol reference, ordered backlog | 13 | 0–7 | Covered |
+| R33 | Resume bullets match what is built | 09 Phase 7, 13 T7.6 | 7 | Covered |
 
 ## 2. Gap log (review of the first version of this plan)
 
@@ -118,6 +120,19 @@ remain open. Re-run this review at the end of every phase.
 | G62 | Time estimates conflicted with your "sequence and scope only" instruction | Low | 09 (estimates removed) |
 | G63 | Features lacked exact boundaries (limits, defaults, out-of-scope lists, acceptance criteria), leaving room for over-engineering | High | 12 (new authoritative feature specification) |
 
+**Fourth review: implementation readiness (package-level verification on PyPI/npm, Sep 2026):**
+
+| # | Gap found | Severity | Fixed in |
+|---|-----------|----------|----------|
+| G64 | `kokoro-onnx` requires Python < 3.14 and loads GPL espeak in-process (`phonemizer`, `espeakng-loader`) | **Critical** (blocks the Python target and the licence) | 03 §4.8: own ~150-line runner on onnxruntime + the timestamped export; ADR-0009 |
+| G65 | `misaki` (English G2P) requires Python < 3.13 and pulls in GPL `phonemizer-fork` + spaCy | High | 03 §4.6: espeak-ng subprocess for all languages |
+| G66 | The `silero-vad` package depends on PyTorch | High | 04 §2: the ONNX model with our own wrapper |
+| G67 | PyGObject has no wheels (needs system dev libraries) and is hard to bundle | Medium | 02 §1.2, 06 §4: AT-SPI and portals over `dbus-fast` |
+| G68 | The Agent SDK wheel bundles a ~100 MB Claude Code CLI; shipping it would bloat the `.deb` and bypass the user's own install | Medium | 05 §3.2: `cli_path` → the user's `claude`; excluded in packaging (T7.1) |
+| G69 | Kokoro Tier A timing was unconfirmed | Medium | Resolved: the timestamped ONNX export outputs `pred_dur` (03 §4.8); Spike B confirms accuracy |
+| G70 | No field-level protocol payloads or complete config key list; no task-level backlog | High | 13 §6–§8 |
+| G71 | No language-ID choice for typed turns | Low | 03 §4.6: `tts.defaultLanguage` (no language-ID library) |
+
 ## 3. Risk register (what can still go wrong)
 
 | Risk | Likelihood | Impact | Mitigation / trigger |
@@ -154,5 +169,5 @@ Each piece of structure has to justify itself against a concrete requirement:
 
 ## 5. Still open (needs your answer)
 
-Two non-blocking questions remain in the [README](README.md#open-questions-not-blocking): extension
-pairing and resume alignment. Everything else is decided (see the README's *Decided* list).
+None. All decisions are recorded in the README's *Decided* list and, from T0.4, as ADRs. Remaining
+uncertainty is confined to the Phase 0 spikes, each of which has a written fallback.

@@ -25,6 +25,7 @@ this milestone.
 ---
 
 **Scope rule:** every task below implements features specified in [12](12-feature-specification.md).
+The task-level backlog with ids, dependencies and done-criteria is [13 §8](13-implementation-guide.md#8-ordered-backlog).
 A phase is done when its features' acceptance criteria pass. The v0.5 and v1 definitions of done are
 at the end of 12.
 
@@ -46,11 +47,13 @@ Tasks
       click-through; WebAudio playback. Measured on the **primary dev machine (Ubuntu 24.04,
       Intel/AMD graphics, default Wayland session)**; functional check on Ubuntu 26.04 in a VM.
       *Gate:* the measured criteria in 02 §1.3 decide Tauri vs Electron.
-- [ ] **Spike B (lip sync):** Kokoro synthesises 5 sentences; confirm what alignment it really gives
-      (phonemes? durations? word timestamps?); hand-build a viseme track; play it on the VRM.
+- [ ] **Spike B (lip sync):** the minimal Kokoro runner (03 §4.8) synthesises 5 sentences from the
+      timestamped export; convert `pred_dur` to phoneme times; hand-build a viseme track; play it on
+      the VRM; compare phoneme onsets with the audio envelope.
       *Gate:* it looks convincing, or we choose the Tier B/C path for v1.
-- [ ] **Spike C (deps):** install faster-whisper, kokoro-onnx/onnxruntime, silero-vad, mcp, keyring,
-      `claude-agent-sdk`, `anthropic`, a D-Bus client (`jeepney`/`dbus-fast`) and PyGObject (AT-SPI) on uv-managed
+- [ ] **Spike C (deps):** the PyPI check is already done (13 §2: every chosen package has Python 3.14
+      Linux wheels). Spike C installs the locked set with uv on Python 3.14, imports each package, and
+      runs one smoke call per native package (onnxruntime, ctranslate2, av, dbus-fast) on uv-managed
       Python 3.14 on Ubuntu 24.04 and 26.04. *Gate:* all have wheels; otherwise pin 3.13 and
       write an ADR.
 - [ ] **Spike D (Ubuntu desktop integration):** each "to verify" item in 02 §1.2 plus PipeWire
@@ -136,13 +139,13 @@ while the avatar looks thoughtful. Dragging, the menu and Exit all work. It surv
       gesture.
 - [ ] First-use model downloads with pinned hashes, progress UI and offline behaviour (08 §6);
       lazy load / idle unload of local models.
-- [ ] Silero VAD; turn TaskGroup with bounded queues; segmenter with tag extraction.
+- [ ] Silero VAD (ONNX, own wrapper); turn TaskGroup with bounded queues; segmenter with tag extraction.
 - [ ] STT adapters: faster-whisper (default), Deepgram. TTS adapters: Kokoro (default), ElevenLabs.
 - [ ] Double-click → listen; states `listening → thinking → speaking`; response modes.
 - [ ] Barge-in via cancellation; truncated message saved at the spoken word.
 
 3b — Performance engine
-- [ ] G2P (misaki + espeak-ng subprocess fallback), phoneme → viseme table, Tier A and B timing,
+- [ ] G2P (espeak-ng subprocess, all languages), Kokoro runner (03 §4.8), phoneme → viseme table, Tier A and B timing,
       Tier D real-time fallback, shape rules, envelope.
 - [ ] `PerformancePlayer` with lookahead, attack/release, closure dominance, envelope jaw gain,
       expression blending; retarget maps `vrm-extended`, `vrm-basic`.
@@ -236,7 +239,7 @@ Tasks
       guide, roadmap (extension next).
 - [ ] Web demo page (optional): `packages/avatar` + a canned performance on GitHub Pages, so
       recruiters can see the avatar without installing anything.
-- [ ] Update the resume bullets to match what was actually built (see README open question 2).
+- [ ] Update the resume bullets to match what was actually built (decided; 13 T7.6).
 - [ ] Licence review: generated `THIRD_PARTY_NOTICES.md` for Python, JS and Rust deps; espeak-ng
       licence and source pointer; asset licences.
 - [ ] Measure and publish: installer size, idle RAM/CPU, RAM with local models, cold start, latency

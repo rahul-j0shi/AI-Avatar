@@ -23,7 +23,7 @@ Paired mode comes first because it reuses 100% of the core.
 1. **Transport:** Chrome native messaging (a tiny native host installed by the desktop app) bridges
    to the core's WebSocket. Pages can't reach `localhost` directly, and native messaging proves the
    caller is our extension ID.
-2. **Pairing:** on first connect the avatar shows a 6-digit code; you type it in the extension. The
+2. **Pairing (decided):** on first connect the avatar shows a 6-digit code; you type it in the extension. The
    core stores a per-extension key. This replaces "Claude login mandatory" (see 05 §4).
 3. **Surface tools:** the extension sends `tools.register` with browser tools (`browser.tabs.list`,
    `browser.navigate`, `browser.read_page`, `browser.click`, `browser.type`, `browser.screenshot`).

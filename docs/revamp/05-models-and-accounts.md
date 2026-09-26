@@ -109,8 +109,8 @@ optimisations:
 
 | Aspect | Specification |
 |--------|---------------|
-| Library | `claude-agent-sdk` (Python), `ClaudeSDKClient` |
-| Login | Done once by the user in a terminal (`claude`, then log in). The adapter checks readiness with a minimal test query when it mounts. Failure → plugin `pending: Claude Code not logged in` with the exact instruction |
+| Library | `claude-agent-sdk` (Python, `ClaudeSDKClient`). Its wheel bundles a ~100 MB Claude Code CLI. We **don't use or ship the bundled one**: `cli_path` points to **your installed `claude`** (found on the login-shell PATH), so login, updates and terms are those of your own official install, and the `.deb` stays small |
+| Login | Done once by you in a terminal, with the official installer and `claude` login. The adapter checks readiness with a minimal test query when it mounts. Failures → plugin `pending: Claude Code not installed` or `pending: Claude Code not logged in`, each with the exact instruction. Spike E verifies that `setting_sources=[]` doesn't affect reading the login |
 | Environment | The child process is started **without** `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN`, because a key in the environment would silently switch it to API billing |
 | Built-in tools | **None.** `tools=[]`, plus `disallowed_tools` listing every Claude Code built-in (Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, …) as a second guard. A contract test asserts that the session's tool list is exactly our tools |
 | Settings isolation | `setting_sources=[]`, so **no** `~/.claude` skills, memory (`CLAUDE.md`), hooks, plugins or MCP servers load. `cwd` = an empty app-owned directory (`$XDG_STATE_HOME/ai-avatar/claude-cwd`) |

@@ -28,7 +28,7 @@ typed text ─►│                    └──────► text deltas ─
              └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **VAD:** Silero VAD (onnx, runs in the executor). It has start/end hysteresis and a configurable
+- **VAD:** the Silero VAD **ONNX model run directly with onnxruntime** (~2 MB, MIT; ~40 lines of our own code). We don't use the `silero-vad` package, because it depends on PyTorch. It runs in the executor. It has start/end hysteresis and a configurable
   end-of-speech silence (default 700 ms). Short silences inside speech are ignored.
 - **STT:** streaming adapters emit partial and final transcripts. Utterance adapters transcribe the
   buffered utterance at end-of-speech. Partials go to the bubble ghost line.
@@ -79,7 +79,7 @@ class TextToSpeech(Protocol):
 | STT | Deepgram | Cloud | True streaming, low latency |
 | STT | Google Cloud Speech-to-Text v2 | Cloud | Streaming; kept because it's on the resume |
 | STT | OpenAI transcription | Cloud | Utterance-level |
-| TTS | **Kokoro-82M** (default) | Local | Apache-2.0, fast on CPU, Tier-A alignment (see 03) |
+| TTS | **Kokoro-82M** (default) | Local | Apache-2.0, fast on CPU. Our own onnxruntime runner on the timestamped export gives Tier A alignment (03 §4.8) |
 | TTS | ElevenLabs | Cloud | Streaming + character timestamps (Tier B) |
 | TTS | Azure Speech | Cloud | Viseme events (Tier A), many languages |
 | TTS | OpenAI TTS | Cloud | No alignment → Tier C/D |

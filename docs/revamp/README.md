@@ -33,6 +33,7 @@ later drive a browser extension; that is planned for, not built.
 | 10 | [Next: browser extension](10-next-browser-extension.md) | How the extension plugs into the same core later |
 | 11 | [Review, traceability & risks](11-review-and-traceability.md) | Wishlist → design → phase map, the gap log from the plan review, the risk register, the over-engineering check |
 | 12 | [Feature specification](12-feature-specification.md) | **Authoritative** per-feature scope: behaviour, in/out of scope, limits, defaults, config keys, errors, acceptance criteria |
+| 13 | [Implementation guide & backlog](13-implementation-guide.md) | Verified toolchain and dependencies, repo bootstrap, conventions, ADR index, config key reference, protocol payloads, the ordered task backlog |
 
 ## Design principles
 
@@ -66,7 +67,7 @@ later drive a browser extension; that is planned for, not built.
 | Language | Language-agnostic: replies in the user's input language; lip sync via IPA phonemes works for any language espeak-ng covers; developed and tested in English | Hinglish-only prompt |
 | 3D | **three.js + @pixiv/three-vrm**, **VRM 1.0** avatars | Ready Player Me (shut down 31 Jan 2026) + Babylon.js |
 | Lip sync | In-house performance engine: phonemes + timings → 15-viseme track + amplitude envelope → per-avatar retarget map | TalkingHead library |
-| Default TTS | **Kokoro-82M** (local, Apache-2.0, gives phonemes and timings). Cloud: ElevenLabs, OpenAI, Azure | MiniMax / Coqui |
+| Default TTS | **Kokoro-82M** through our own onnxruntime runner on the timestamped ONNX export (local, Apache-2.0, phoneme timings); espeak-ng subprocess for pronunciation (G2P); nothing GPL in-process. Cloud: ElevenLabs, OpenAI, Azure | MiniMax / Coqui |
 | Default STT | Mic captured by the core through **PipeWire** (with its WebRTC echo cancellation) + **faster-whisper** (local) + **Silero VAD**. Cloud: Deepgram, Google Cloud STT v2, OpenAI | Whisper API with a volume threshold |
 | LLM | **Claude via your subscription** (default when a logged-in Claude Code is present, through the official Agent SDK, 05 §3) · Claude via Anthropic API key · OpenAI-compatible (OpenAI, OpenRouter, Ollama, LM Studio, DeepSeek…) · Gemini. Two ports: `ChatModel` and `AgentBackend` | MiniMax / OpenAI hard-coded |
 | Agent loop | Own small streaming tool-calling loop (≈200 lines) with await-able approvals | LangGraph |
@@ -84,16 +85,17 @@ later drive a browser extension; that is planned for, not built.
   do yourself), the Anthropic API key second and used for public demos. See 05 §3.
 - **Default avatar:** a CC0 VRoid preset VRM. See 03 §1.
 - **Planning style:** no dates or durations. Sequence, scope and exit criteria only. See 09.
+- **Extension identity:** the future extension pairs with the desktop app using a one-time code, not
+  a Claude login. See 10 §3.
+- **Resume:** the bullets are rewritten to match what is actually built. The draft is finalised in
+  Phase 7.
 - **Feature scope:** [12 — Feature specification](12-feature-specification.md) is the authoritative
   list of what v1 does and doesn't do.
 
-## Open questions (not blocking)
+## Open questions
 
-1. **Extension identity.** The extension pairs with the desktop app using a one-time code rather than
-   a Claude login (a Claude login isn't allowed for third-party apps; see 05 §4, 10). OK?
-2. **Resume alignment.** The plan swaps Babylon.js → three.js, Ready Player Me → VRM, Coqui → Kokoro
-   (Coqui kept as an optional adapter), LangGraph → own loop. The resume bullets should be updated to
-   match what gets built, because interviewers will open the repo.
+None. Implementation starts with [13 — Implementation guide & backlog](13-implementation-guide.md),
+task T0.1.
 
 ## Research sources (checked Sep 2026)
 
