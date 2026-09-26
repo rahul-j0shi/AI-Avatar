@@ -2,11 +2,21 @@
   "name": "svara",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "A voice-first desktop character with native lip sync.",
   "license": "MIT",
   "packageManager": "pnpm@12.7.0",
+  "scripts": {
+    "lint": "biome check . && tsc --noEmit",
+    "test": "vitest run"
+  },
   "engines": {
     "node": ">=24 <25",
     "pnpm": ">=12 <13"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "typescript": "5.9.3",
+    "vitest": "5.0.2"
   }
 }

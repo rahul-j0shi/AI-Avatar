@@ -12,3 +12,38 @@ license = "MIT"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/svara_core"]
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6,<7",
+    "pyright>=1.1.410,<1.1.420",
+    "pytest>=9,<10",
+    "pytest-asyncio>=1,<2",
+    "ruff>=0.16,<0.17",
+]
+
+[tool.pytest.ini_options]
+addopts = ["--strict-config", "--strict-markers"]
+asyncio_mode = "strict"
+testpaths = ["tests/unit", "tests/contract", "tests/golden"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["ANN", "ASYNC", "B", "BLE", "E4", "E7", "E9", "F", "I", "RUF", "UP"]
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.14"
+strict = [
+    "src/svara_core/config",
+    "src/svara_core/kernel",
+    "src/svara_core/protocol",
+    "src/svara_core/tools",
+]
+typeCheckingMode = "basic"
+venv = ".venv"
+venvPath = "."
