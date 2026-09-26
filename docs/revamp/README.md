@@ -32,6 +32,7 @@ later drive a browser extension; that is planned for, not built.
 | 09 | [Roadmap](09-roadmap.md) | Phases 0–7 with tasks and exit criteria, testing strategy |
 | 10 | [Next: browser extension](10-next-browser-extension.md) | How the extension plugs into the same core later |
 | 11 | [Review, traceability & risks](11-review-and-traceability.md) | Wishlist → design → phase map, the gap log from the plan review, the risk register, the over-engineering check |
+| 12 | [Feature specification](12-feature-specification.md) | **Authoritative** per-feature scope: behaviour, in/out of scope, limits, defaults, config keys, errors, acceptance criteria |
 
 ## Design principles
 
@@ -67,7 +68,7 @@ later drive a browser extension; that is planned for, not built.
 | Lip sync | In-house performance engine: phonemes + timings → 15-viseme track + amplitude envelope → per-avatar retarget map | TalkingHead library |
 | Default TTS | **Kokoro-82M** (local, Apache-2.0, gives phonemes and timings). Cloud: ElevenLabs, OpenAI, Azure | MiniMax / Coqui |
 | Default STT | Mic captured by the core through **PipeWire** (with its WebRTC echo cancellation) + **faster-whisper** (local) + **Silero VAD**. Cloud: Deepgram, Google Cloud STT v2, OpenAI | Whisper API with a volume threshold |
-| LLM | Own `ChatModel` port: Anthropic (API key), OpenAI-compatible (OpenAI, OpenRouter, Ollama, LM Studio, DeepSeek…), Gemini. Plus an experimental `AgentBackend` bridge to the user's own Claude Code install | MiniMax / OpenAI hard-coded |
+| LLM | **Claude via your subscription** (default when a logged-in Claude Code is present, through the official Agent SDK, 05 §3) · Claude via Anthropic API key · OpenAI-compatible (OpenAI, OpenRouter, Ollama, LM Studio, DeepSeek…) · Gemini. Two ports: `ChatModel` and `AgentBackend` | MiniMax / OpenAI hard-coded |
 | Agent loop | Own small streaming tool-calling loop (≈200 lines) with await-able approvals | LangGraph |
 | Plugins | Own mini kernel following Cordis semantics (context, services, inject, reversible effects, events) | — |
 | Extensibility | MCP client (stdio + streamable HTTP, Claude-Desktop-compatible `mcp.json`), Agent Skills (`SKILL.md`), `persona.md` | — |
@@ -76,21 +77,21 @@ later drive a browser extension; that is planned for, not built.
 ## Decided
 
 - **Platform:** Ubuntu only for v1 (24.04 LTS and 26.04 LTS). See 02 §1.
+- **Primary dev/demo machine:** Ubuntu 24.04 with Intel/AMD graphics. 26.04 is checked in a VM;
+  NVIDIA is best-effort and untested.
 - **Language:** no language-specific work. The assistant replies in the user's language. See 03 §4.6.
+- **Claude:** your subscription first (through the official Agent SDK, using the Claude Code login you
+  do yourself), the Anthropic API key second and used for public demos. See 05 §3.
+- **Default avatar:** a CC0 VRoid preset VRM. See 03 §1.
+- **Planning style:** no dates or durations. Sequence, scope and exit criteria only. See 09.
+- **Feature scope:** [12 — Feature specification](12-feature-specification.md) is the authoritative
+  list of what v1 does and doesn't do.
 
-## Open questions for you
+## Open questions (not blocking)
 
-These change the plan, so I need your answer on them. Each is also listed in the relevant document.
-
-1. **The Claude subscription.** Anthropic's terms do not allow a third-party app to use Claude
-   Free/Pro/Max OAuth tokens. The only compliant subscription path is driving the **official Claude Code
-   CLI** that you log into yourself, and Anthropic's policy and billing for that path changed several
-   times in 2026 (see 05). Proposal: Anthropic **API key** is the supported Claude path, and the Claude
-   Code bridge is an experimental, off-by-default adapter. OK?
-2. **"Claude login mandatory, same account" for extension sync.** Because of (1) the app can't use
-   the Claude account as its identity. Proposal: the extension pairs with the local desktop core using a
-   one-time pairing code (see 10). OK?
-3. **Resume alignment.** The plan swaps Babylon.js → three.js, Ready Player Me → VRM, Coqui → Kokoro
+1. **Extension identity.** The extension pairs with the desktop app using a one-time code rather than
+   a Claude login (a Claude login isn't allowed for third-party apps; see 05 §4, 10). OK?
+2. **Resume alignment.** The plan swaps Babylon.js → three.js, Ready Player Me → VRM, Coqui → Kokoro
    (Coqui kept as an optional adapter), LangGraph → own loop. The resume bullets should be updated to
    match what gets built, because interviewers will open the repo.
 
@@ -106,3 +107,5 @@ These change the plan, so I need your answer on them. Each is also listed in the
 - Ubuntu/GNOME: [Ubuntu 26.04 drops the Xorg session (Let's Data Science)](https://letsdatascience.com/news/ubuntu-resolute-raccoon-drops-xorg-keeps-x11-apps-d88e821a), [GNOME X11 session removal FAQ](https://blogs.gnome.org/alatiera/2025/06/23/x11-session-removal-faq/), [GNOME 48 global shortcuts portal](https://release.gnome.org/48/developers/)
 - WebKitGTK on Linux: [XWayland/Skia CPU painting issue](https://github.com/nukleas/cycletron/issues/8), [NVIDIA + WebKitGTK idle CPU issue](https://github.com/phase-rs/phase/issues/8614)
 - PipeWire echo cancellation: [module-echo-cancel docs](https://docs.pipewire.org/page_module_echo_cancel.html)
+- Claude Agent SDK: [overview (third-party login note, branding)](https://code.claude.com/docs/en/agent-sdk/overview), [Python reference](https://code.claude.com/docs/en/agent-sdk/python), [Use the Agent SDK with your Claude plan](https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan)
+- Avatar licensing: [VRoid FAQ: sample model conditions](https://vroid.pixiv.help/hc/en-us/articles/4402614652569-Do-VRoid-Studio-s-sample-models-come-with-conditions-of-use), [OpenGameArt VRoid CC0 models](https://opengameart.org/content/vroid-studio-cc0-models)

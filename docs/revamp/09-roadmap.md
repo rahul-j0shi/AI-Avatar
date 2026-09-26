@@ -4,28 +4,16 @@ Each phase ends with something that **runs and can be demoed**. The next phase d
 the exit criteria are met. The order is chosen so the riskiest things (transparent WebGL window, lip
 sync quality, Python wheel support) are proven first.
 
-## Effort and the portfolio-ready milestone
+## Portfolio-ready milestone
 
-Rough effort in **full-time weeks for one developer**. Part-time: multiply by about 2–2.5. These are
-planning ranges, not promises. Spikes can move them.
-
-| Phase | Weeks | Cumulative |
-|-------|-------|-----------|
-| 0 Reset + spikes (A twice, B, C, D) | 2–3 | 2–3 |
-| 1 Kernel + text brain | 2–3 | 4–6 |
-| 2 Desktop presence | 2–3 | 6–9 |
-| 3 Voice + performance | 4–6 | 10–15 |
-| 4 Agent + tools + permissions | 3–4 | 13–19 |
-| 5 MCP + skills + providers | 2–3 | 15–22 |
-| 6 Config panel + polish | 2–3 | 17–25 |
-| 7 Ship | 1–2 | 18–27 |
-
-**Because this is for a job search, there is an earlier cut: "v0.5 — portfolio preview"** at the end
-of Phase 4a (read-only tools), about 11–16 weeks in:
+The plan is ordered by sequence and scope only, with no dates or durations. **Because this is for a job
+search, there is an earlier cut: "v0.5 — portfolio preview"** at the end
+of Phase 4a (read-only tools):
 
 - Floating avatar, drag, context menu, bubble, conversations
 - Voice in/out with the full lip-sync engine and the lip-sync lab
-- Multi-provider LLM (Anthropic, OpenAI-compatible incl. OpenRouter/Ollama)
+- Multi-provider LLM (Claude via your subscription, Claude via API key, OpenAI-compatible incl.
+  OpenRouter/Ollama)
 - Plugin kernel with live feature toggles
 - Read-only desktop tools with the permission engine and audit log
 - A `.deb` for Ubuntu 24.04/26.04, a README with demo video, and the latency table
@@ -35,6 +23,10 @@ It is released as a GitHub pre-release. The README roadmap shows Phases 4b–7 a
 this milestone.
 
 ---
+
+**Scope rule:** every task below implements features specified in [12](12-feature-specification.md).
+A phase is done when its features' acceptance criteria pass. The v0.5 and v1 definitions of done are
+at the end of 12.
 
 ## Phase 0: Reset, foundations, spikes
 
@@ -51,13 +43,14 @@ Tasks
 - [ ] `docs/adr/0001…` for each decision in the README table.
 - [ ] **Spike A (shell), built twice: Tauri and Electron** (02 §1.3). A transparent, frameless,
       always-on-top window through XWayland rendering a VRM with three-vrm; drag; input-region
-      click-through; WebAudio playback. Run on Ubuntu 24.04 and 26.04 (default Wayland session), on an
-      Intel/AMD iGPU and on NVIDIA. *Gate:* the measured criteria in 02 §1.3 decide Tauri vs Electron.
+      click-through; WebAudio playback. Measured on the **primary dev machine (Ubuntu 24.04,
+      Intel/AMD graphics, default Wayland session)**; functional check on Ubuntu 26.04 in a VM.
+      *Gate:* the measured criteria in 02 §1.3 decide Tauri vs Electron.
 - [ ] **Spike B (lip sync):** Kokoro synthesises 5 sentences; confirm what alignment it really gives
       (phonemes? durations? word timestamps?); hand-build a viseme track; play it on the VRM.
       *Gate:* it looks convincing, or we choose the Tier B/C path for v1.
 - [ ] **Spike C (deps):** install faster-whisper, kokoro-onnx/onnxruntime, silero-vad, mcp, keyring,
-      sounddevice, a D-Bus client (`jeepney`/`dbus-fast`) and PyGObject (AT-SPI) on uv-managed
+      `claude-agent-sdk`, `anthropic`, a D-Bus client (`jeepney`/`dbus-fast`) and PyGObject (AT-SPI) on uv-managed
       Python 3.14 on Ubuntu 24.04 and 26.04. *Gate:* all have wheels; otherwise pin 3.13 and
       write an ADR.
 - [ ] **Spike D (Ubuntu desktop integration):** each "to verify" item in 02 §1.2 plus PipeWire
@@ -65,10 +58,15 @@ Tasks
       RemoteDesktop portal grants being remembered, AT-SPI coverage, GNOME custom-shortcut → CLI
       action, clipboard from the avatar window, 100/150/200% scaling. Record results in an ADR.
 - [ ] Spike C also records model sizes, RAM with models loaded, and cold-start time.
-- [ ] Create the default avatar in VRoid Studio (vrm-basic mouth first; extended visemes can come
-      later, see 03 §1); record asset licences in `assets/LICENSES.md`.
-- [ ] Decide the answers to the README's remaining open questions (Claude path, extension pairing,
-      resume).
+- [ ] **Spike E (Claude subscription bridge):** on the dev machine with a logged-in Claude Code,
+      run `claude-agent-sdk` with the 05 §3.2 settings. Confirm: no built-in tools are offered,
+      `setting_sources=[]` loads nothing from `~/.claude`, one in-process MCP tool is callable,
+      partial-message streaming works, removing `ANTHROPIC_API_KEY` keeps subscription billing, and
+      the first-token latency is recorded. *Gate:* if any of these fails, the Anthropic API-key adapter
+      becomes the default Claude path and the finding goes in an ADR.
+- [ ] Obtain the default avatar: export a CC0 VRoid preset as VRM 1.0 (03 §1); write
+      `assets/LICENSES.md`.
+- [ ] Record the open questions still pending (extension pairing, resume) in the README.
 
 **Exit:** CI green (24.04 + 26.04); spikes answered and written up in ADRs; default `.vrm` committed.
 
@@ -84,7 +82,8 @@ Tasks
 - [ ] `config`: pydantic models → JSON Schema export; loader → plugin tree diff → mount/unmount;
       file watcher; atomic writes.
 - [ ] `storage`: SQLite event log with async writer; `secrets` via keyring.
-- [ ] `providers.llm`: `anthropic`, `openai_compat` (+ OpenRouter, Ollama presets); shared contract
+- [ ] `providers.llm`: **`claude_subscription`** (AgentBackend, text only for now, 05 §3.2),
+      `anthropic` (with the 05 §2a rules), `openai_compat` (+ OpenRouter, Ollama presets); shared contract
       tests with recorded cassettes.
 - [ ] `agent`: loop without tools; prompt assembly with sections; persona plugin (`persona.md`).
 - [ ] `protocol`: WS server with token auth, messages, TS type generation + drift check.
@@ -119,6 +118,7 @@ Tasks
       saccades, cursor gaze), state-driven poses (idle / thinking / acting / error).
 - [ ] Bubble (streaming text, auto-hide, "…more"), type-in box.
 - [ ] Conversations window (list + transcript from event log projections).
+- [ ] Tray icon (Show/Hide, Talk, Configure, Exit) as the recovery path (12 F03).
 - [ ] Configure window shell with *Models & accounts* and *Persona* sections working.
 
 **Exit:** install from a dev build, type a question, and watch the answer stream into the bubble
@@ -176,6 +176,9 @@ Tasks
       computer use.
 - [ ] Conversation boundaries (auto new conversation after inactivity, menu item) (06 §7).
 - [ ] 4d computer use behind `features.computerUse` (experimental).
+- [ ] `claude_subscription` gets tools: the registry is exposed as an in-process SDK MCP server,
+      and permissions are enforced inside each handler (05 §3.2). Contract test: the session's tool
+      list equals our registry, with no Claude Code built-ins.
 
 **Exit:** demo script: *"What's the biggest file in my Downloads?"* (read, no prompt) → *"Move it to
 Documents/Archive"* (approval bubble) → *"Open it"* → *"Delete my SSH keys"* (denied by rule, and the
@@ -191,9 +194,6 @@ Tasks
 - [ ] Skills: loader, progressive disclosure via `skills.load`, per-skill toggle, in-app editor with
       template and validation.
 - [ ] `gemini` ChatModel adapter; Google Cloud STT v2 and Azure TTS (viseme events) adapters.
-- [ ] Experimental `claude_code` AgentBackend (05 §3), off by default, with our tools via an
-      in-process MCP server and our permission callback, **Claude Code's built-in tools disabled**
-      (contract test).
 - [ ] MCP runtime prerequisite checks (node/uv on PATH, login-shell PATH resolution) and timeouts.
 - [ ] Fully offline configuration tested end to end (faster-whisper + Kokoro + Ollama).
 
@@ -209,7 +209,7 @@ Tasks
       Skills, MCP, Permissions (editor + mode + audit), Features, Advanced.
 - [ ] First-run onboarding: pick a provider (or local Ollama), test the mic, pick a voice, set the
       persona name, choose the permissions mode.
-- [ ] Tray icon, push-to-talk hotkey, "hide for 30 min", multi-monitor edge cases, reduced motion,
+- [ ] Push-to-talk hotkey, "hide for 30 min", multi-monitor edge cases, reduced motion,
       battery-friendly frame caps.
 - [ ] Error UX: every failure has a visible, human message on the avatar and a detail in the logs.
 - [ ] Launch at login toggle; "hide for 30 min" menu item; avatar scale.
@@ -236,7 +236,7 @@ Tasks
       guide, roadmap (extension next).
 - [ ] Web demo page (optional): `packages/avatar` + a canned performance on GitHub Pages, so
       recruiters can see the avatar without installing anything.
-- [ ] Update the resume bullets to match what was actually built (see README open question 5).
+- [ ] Update the resume bullets to match what was actually built (see README open question 2).
 - [ ] Licence review: generated `THIRD_PARTY_NOTICES.md` for Python, JS and Rust deps; espeak-ng
       licence and source pointer; asset licences.
 - [ ] Measure and publish: installer size, idle RAM/CPU, RAM with local models, cold start, latency

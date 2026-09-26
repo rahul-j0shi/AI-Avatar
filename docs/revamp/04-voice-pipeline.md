@@ -4,7 +4,7 @@
 
 | Step | Where | Why |
 |------|-------|-----|
-| Mic capture | **Core** (`audio.input.pipewire` plugin, `sounddevice` on PipeWire) | WebKitGTK's `getUserMedia` is fragile on Linux. PipeWire's echo-cancel module (monitor mode) cancels whatever the system plays, including our webview's playback, so barge-in works with speakers (02 §1.4). The future extension captures in the browser and streams frames over the protocol instead |
+| Mic capture | **Core** (`audio.input.pipewire` plugin: a `pw-record --target <node> --rate 16000 --channels 1 --format s16 -` subprocess read from stdout; `pw-record` ships with Ubuntu's PipeWire. `sounddevice` is only a fallback because it can't target a specific PipeWire node) | WebKitGTK's `getUserMedia` is fragile on Linux. PipeWire's echo-cancel module (monitor mode) cancels whatever the system plays, including our webview's playback, so barge-in works with speakers (02 §1.4). The future extension captures in the browser and streams frames over the protocol instead |
 | VAD, STT, LLM, TTS, visemes | **Core** | All logic in one place; providers are adapters |
 | Playback | **Webview** (`AudioContext`) | Must share one clock with the face (see 03 §5) |
 
@@ -119,10 +119,10 @@ Kokoro + Ollama (a local LLM) with no network at all. It is documented and teste
 | Stage | Target (cloud LLM, local STT/TTS) |
 |-------|-----------------------------------|
 | End of speech → VAD end | 700 ms (configurable; the biggest lever) |
-| STT final | ≤ 300 ms for a short utterance (faster-whisper small on CPU; *verify on your machine*) |
-| LLM first token | 300–800 ms (provider dependent) |
+| STT final | ≤ 1.0 s for a 5 s utterance (faster-whisper `small` int8 on the dev machine's CPU; 12 F10) |
+| LLM first token | 300–800 ms (provider dependent; `claude_subscription` keeps its client connected per conversation so there is no per-turn process start) |
 | First sentence ready | + 200–600 ms |
-| TTS first audio | ≤ 250 ms (Kokoro) |
+| TTS first audio | ≤ 400 ms for a 10-word sentence (Kokoro ONNX; 12 F12) |
 | **Speech end → avatar starts talking** | **≤ 2.0 s p50** (stretch: 1.2 s) |
 
 Every turn records stage timestamps in the event log. The Advanced panel shows p50/p95. The README

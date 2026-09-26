@@ -17,10 +17,14 @@ async def run_turn(ctx, conversation, user_msg) -> None:
         if not calls:
             break
         results = await ctx.tools.execute_all(calls, turn=ctx.turn)   # permission check inside; may await approval
-        messages += [assistant_with(calls), *results]
+        messages.append(assistant_message)       # the provider's full, unmodified content (thinking + text + tool calls)
+        messages.append(user_message(results))   # ALL results of this step in ONE message; failures as is_error
     await ctx.emit("assistant.done")
 ```
 
+- **History is append-only.** Messages are never edited after they are sent (05 §2a). This loop is
+  used by the `ChatModel` adapters. With `claude_subscription` (an `AgentBackend`), Claude Code runs
+  the loop, and our side only supplies tools, permissions and the prompt (05 §3.2).
 - **Approvals are just `await`.** When the permission engine returns `ask`, the tool call awaits a
   future that resolves when the user clicks Allow/Deny in the bubble (or on a timeout, which means
   deny). asyncio makes this trivial, and it is the main reason people reach for LangGraph
@@ -121,12 +125,14 @@ counts as Deny.
 
 ## 4. Desktop tools (phased, all behind `features.desktopTools`)
 
+The **exact tool list, arguments and limits are in 12 F25**; this section explains the design.
+
 | Phase | Tools | Capability | Default |
 |-------|-------|-----------|---------|
 | 4a (read) | `fs.list`, `fs.read_file` (text, PDF text, image → vision), `fs.search` (name/content, bounded), `clipboard.read`, `screen.capture` (one monitor or window), `apps.running` / `apps.focused` (AT-SPI), `apps.list` (installed `.desktop` entries), `system.info` | `fs.read`, `clipboard.read`, `screen.capture`… | Allowed in read-only |
 | 4b (act) | `fs.write_file`, `fs.move`, `fs.trash` (never hard delete), `clipboard.write`, `app.open` (also brings a running app to the front), `url.open`, `notify` | `fs.write`, `app.open`… | Ask/deny by mode |
 | 4c (exec) | `shell.exec` (no shell interpolation; argv list; cwd; timeout; output cap) | `shell.exec` | Deny unless a rule allows |
-| 4d (computer use) | `input.move/click/type/key/scroll` + screenshot loop | `input.control` | Ask every time, stop hotkey, visible "controlling" state on the avatar |
+| 4d (computer use) | `input.move/click/type/key/scroll` + screenshot loop | `input.control` | ASK once per turn; the grant covers that turn only, capped at 50 actions / 120 s (12 F26). Stop hotkey; visible "controlling" state on the avatar |
 
 **How each tool works on Ubuntu (GNOME Wayland)**, with the reasons in 02 §1.2:
 

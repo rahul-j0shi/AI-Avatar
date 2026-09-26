@@ -24,18 +24,24 @@ changes.
 **Renderer:** three.js + `@pixiv/three-vrm`, because it is the reference VRM runtime and actively
 maintained. Babylon.js has only community VRM loaders. (Resume note: this replaces "Babylon.js".)
 
-**Default avatar:** we create one in VRoid Studio, export VRM 1.0, and add custom mouth expressions
-in Blender (`PP`, `FF`, `TH`, `DD`, `kk`, `CH`, `SS`, `nn`, `RR`) so the default avatar can show all 15
-visemes (§4). It is committed with Git LFS, only once, not twice like today.
+**Default avatar (decided): a CC0 VRoid preset model.** VRoid's FAQ states that the VRoid Studio
+preset models (`VRoidPreset_A` … `Z`) are **CC0** (copyright waived, no conditions). The
+`AvatarSample_A/B/C` models are **not** CC0 and are not used.
 
-- **Effort warning:** sculpting 9 extra mouth shape keys is real art work (think 1–3 days for a
-  beginner, including learning the Blender VRM add-on). **Fallback:** ship v1 with the `vrm-basic`
-  retarget (5 vowels + closed), which is already clearly better than volume-only lip sync, and add the
-  extended shapes when there's time. The engine is identical either way; only the retarget file
-  changes.
-- **Licences:** check VRoid Studio's terms for the preset hair and clothing parts used, and avoid
-  third-party BOOTH items unless their licence allows redistribution in an open-source repo. Record
-  the result in `assets/LICENSES.md`.
+- **Getting the file on Ubuntu:** VRoid Studio has no Linux build. The preset is exported **once** as
+  VRM 1.0 by running VRoid Studio under Proton/Wine (community-reported to work) or on any
+  Windows/macOS machine. **Fallback:** a CC0 VRoid model from an existing CC0 collection (e.g. the
+  OpenGameArt "VRoid Studio CC0 models" pack). three-vrm loads both VRM 0.x and 1.0, so no conversion
+  is required.
+- **Mouth shapes:** VRoid exports include the five vowel shapes plus neutral/closed-type mouth
+  shapes, so v1 uses the **`vrm-basic`** retarget (§4.4) out of the box. The extended 15-viseme mouth
+  (adding `PP`, `FF`, `TH`, `DD`, `kk`, `CH`, `SS`, `nn`, `RR` shape keys in Blender with the VRM
+  add-on, which runs natively on Ubuntu) is an **optional later item**. The engine is identical
+  either way; only the retarget file changes.
+- **Customisation in v1** happens only through `avatar.json` (§2): colours, mesh visibility,
+  framing, spring bones, face and idle parameters. No mesh editing inside the app.
+- **Licence record:** `assets/LICENSES.md` states the preset name, its CC0 source (the VRoid FAQ URL),
+  and the export date. It is committed with Git LFS, only once, not twice like today.
 - **Respect VRM licence metadata:** imported `.vrm` files carry usage permissions (avatar
   permission, commercial use, modification). The import dialog shows them, and the app warns if a
   model forbids modification before the looks editor changes it.
@@ -70,7 +76,7 @@ just writes this same file, so nothing is thrown away.
   "face": {
     "expressionIntensity": 0.8,
     "blink": { "meanIntervalMs": 3800, "doubleBlinkChance": 0.15 },
-    "gaze": { "followCursor": true, "saccades": true }
+    "gaze": { "followCursor": true, "saccades": true }   // cursor is only known over the avatar window (§4.5)
   },
   "idle": { "breathing": 0.6, "sway": 0.3, "animations": ["idle_1.vrma"] },
   "lipsync": {
@@ -219,6 +225,10 @@ The 15 internal visemes map to whatever the model has. This is data, not code:
 - **Idle layer (always on):** stochastic blinking (Poisson, with occasional double blinks), breathing,
   micro-sway, saccades, and gaze following the cursor (clamped). These are cheap and they make the
   avatar feel alive.
+- **Gaze under Wayland:** the global cursor position is not available to our XWayland window when the
+  pointer is over Wayland-native apps (02 §1.2). So `gaze.followCursor` only follows the cursor while
+  it is over the avatar window. Otherwise the avatar looks at the viewer (camera) with natural
+  saccades.
 - **Feature flags:** `lipsync`, `expressions`, `gestures`, `idle.gazeFollowsCursor` can each be
   turned off.
 

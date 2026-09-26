@@ -3,7 +3,8 @@
 ## 1. Two ports, not one
 
 Your requirement is "don't depend on one or two LLM providers, and let me use my Claude
-subscription." Those two need different shapes, so there are two ports:
+subscription." Those two need different shapes, so there are two ports. `ChatModel` means we run
+the loop; `AgentBackend` means Claude Code runs the loop through the Agent SDK (§3):
 
 ```python
 class ChatModel(Protocol):
@@ -52,65 +53,89 @@ parallel tool calls, image input, cancellation mid-stream, error mapping).
   stable system sections (persona, rules, skills index). OpenAI-compatible providers cache prefixes
   automatically where supported. That's why prompt assembly (07 §4) puts stable sections first and
   volatile ones (time, active window) last.
-- **Context budget:** each turn is assembled within `context_budget = model.max_context -
-  max_output - safety margin`. History is **windowed from the newest turn backwards**. Large old tool
-  results are replaced by a one-line stub ("[tool result omitted: 14 KB]"). If that still doesn't
-  fit, the oldest turns are dropped. Summarisation of dropped turns is post-v1. Token counts use the
-  provider's counter when available, otherwise a tokenizer estimate plus a 10% margin.
+- **Context budget:** each turn must fit `model.max_context - max_output - safety margin`. How that
+  is achieved is **per adapter**, because some providers forbid editing earlier history (see §2a):
+  - `openai_compat` and `gemini`: window history from the newest turn backwards, replace large old
+    tool results with a one-line stub ("[tool result omitted: 14 KB]"), then drop the oldest turns.
+  - `anthropic`: **never edit or drop sent history**. Use the API's server-side compaction and its
+    tool-result clearing (context editing) instead (§2a).
+  - `claude_subscription`: Claude Code manages its own context (§3).
+  - Token counts use the provider's counter when available (Anthropic `count_tokens`), otherwise a
+    tokenizer estimate plus a 10% margin. Summarisation for the other adapters is post-v1.
 
 **Model roles** in config: `main` (conversation + tools) and optional `vision` (screenshots, if `main`
 lacks vision). Keep it to these two; add roles only when a real need appears.
 
-## 3. The Claude subscription: what is and isn't allowed
+## 2a. Anthropic API adapter: rules that must hold
 
-This needs to be said plainly, because building on the wrong assumption could get your Claude account
-banned.
+Checked against the current Anthropic API documentation (Sep 2026). These are correctness rules, not
+optimisations:
 
-- Anthropic's usage policy (updated Feb 2026) says that **using OAuth tokens obtained through Claude
-  Free, Pro or Max accounts in any other product, tool or service — including the Agent SDK — is not
-  permitted** and violates the Consumer Terms. Subscription OAuth is meant for Claude Code and
-  Claude.ai. Anthropic began blocking subscription OAuth in third-party clients in Jan 2026.
-- Products built on Claude are expected to use **API keys** (Claude Console or a supported cloud
-  provider).
-- Running the **official Claude Code binary** (including headless `claude -p` and the Agent SDK, which
-  drives that binary) is a first-party path. In June 2026 Anthropic announced that this programmatic
-  usage would move to a separate monthly credit pool, then **paused that change**, saying programmatic
-  usage keeps working with subscriptions for now and that notice would come before any future change.
-  This area has moved several times in 2026.
+| Rule | Why |
+|------|-----|
+| Default model `claude-opus-5`. The model is a config value and the UI lists models from the Models API (`client.models.list()`, which returns `max_input_tokens`, `max_tokens` and `capabilities`) | No hard-coded model table for Anthropic |
+| Adaptive thinking (`thinking: {type: "adaptive"}`) with `output_config.effort` as the only depth control. Config: `llm.effort`, default `"low"` for this voice assistant, raised per user choice | `budget_tokens` is rejected on current models, and effort is the latency/cost lever. Voice turns need fast first tokens |
+| **Append-only history.** The full assistant `content` (thinking, text and tool_use blocks) is stored and sent back **unchanged**. Earlier messages are never edited, truncated or dropped | Newer models reject edited history that contains thinking blocks (400 on newer accounts) or silently lose reasoning |
+| Long conversations use **server-side compaction** (beta `compact-2026-01-12`, with the returned compaction blocks appended as-is) and **tool-result clearing** (beta `context-management-2025-06-27`, `clear_tool_uses_20250919`) | The API-native way to stay within context without editing history |
+| All tool results of one step go back in **one** user message, and a failed tool returns `is_error: true` | The API contract for parallel tool use |
+| No forced `tool_choice` (`any` / `tool`); always `auto` | Forced tool choice returns 400 on newer models |
+| Tool inputs are parsed as JSON and validated against the tool's schema before running | Escaping differs between models; never string-match |
+| `stop_reason: "refusal"` is handled: the bubble says the assistant can't help with that, and the turn ends cleanly. Server-side fallbacks (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`) are on by default and configurable | Otherwise a refusal looks like an empty reply |
+| Prompt caching: top-level `cache_control` + a stable prefix (tools → system). Volatile facts (time, focused app) are sent as a **mid-conversation system message** on models that support it, otherwise inside the user turn. **Never** in the top-level system prompt | Any byte change in the prefix invalidates the cache |
+| Barge-in never edits the interrupted assistant message. The next user turn starts with a short note: "(You were interrupted after: '…'.)" | Same append-only rule |
+| Typed SDK errors are mapped to our error types (`AuthenticationError` → `ProviderAuthError`, `RateLimitError` → `ProviderRateLimit`, …). The SDK's own retries are set to 0, and our retry policy (04 §4a) decides | One retry policy in one place |
 
-**So the design is:**
+## 3. The Claude subscription (the primary Claude path, by your decision)
 
-1. **Supported Claude path = Anthropic API key**, through the `anthropic` ChatModel adapter. It is
-   fully featured and has no policy risk.
-2. **Experimental `claude_code` AgentBackend, off by default**, for personal use:
-   - It uses the Python **Claude Agent SDK**, which runs the **user's own installed Claude Code**
-     that *the user logged into themselves* (`claude` → `/login`). Our app never sees, stores or
-     forwards a token and never shows a "log in with Claude" screen.
-   - Our tools are exposed to it as an in-process MCP server, and our permission engine is plugged in
-     through the SDK's tool-permission callback. Our permission rules still decide.
-   - **Claude Code's own built-in tools (Bash, Read, Edit, Write, WebFetch, …) must be disabled**
-     (an allow-list containing only our MCP tools). Otherwise it could act on the machine outside our
-     permission engine. A contract test asserts that the bridge offers no tool we didn't register.
-   - It has its own session and memory. We pass our persona and history in explicitly, and we don't
-     rely on Claude Code's project files (`CLAUDE.md` etc.) because the working directory is an empty
-     app-owned folder.
-   - The Configure panel shows its status (CLI found / logged in / version) and a short notice that
-     subscription use by programmatic clients is governed by Anthropic's current terms.
-   - **Before any public release or demo, re-check Anthropic's terms.** If they don't allow it, the
-     adapter ships disabled or is removed. It is one plugin, so removing it is trivial (temporal
-     composability again).
-3. Your wish "limit subscription login to Claude only for now" is naturally satisfied: no other
-   subscription bridges exist, and every other provider is API key only.
+### 3.1 What is allowed today (verified Sep 2026)
 
-**Open question 2 (please confirm):** API key as the supported Claude path, with the Claude Code
-bridge as an experimental plugin.
+- **Allowed and documented:** Claude's help article *"Use the Claude Agent SDK with your Claude
+  plan"* (updated 16 Jun 2026) says Pro, Max, Team and Enterprise plans cover the Agent SDK,
+  `claude -p`, and third-party apps that authenticate with your subscription *through the Agent SDK*.
+  A planned move of this usage to a separate monthly credit was paused on 15 Jun 2026, so for now it
+  draws from your normal subscription limits.
+- **Not allowed:** using subscription OAuth **tokens** directly in any other product (Anthropic's
+  usage policy, Feb 2026). And the Agent SDK docs say that, unless previously approved, **third-party
+  developers may not *offer* claude.ai login** or subscription rate limits in their products.
+- **Consequence for our design:** the app uses the **official Agent SDK**, which runs the official
+  Claude Code binary, logged in **by you, in a terminal, outside our app**. The app never shows a
+  Claude login, never reads, stores or forwards a token, and never markets subscription access.
+  It uses the machine's existing Claude Code login, the way any script on your machine can.
+- **Policy volatility:** Anthropic changed this area three times in 2026. The same adapter layer has an
+  **Anthropic API-key** path, and switching is one config value. Public demos and recordings use the
+  API-key path.
 
-## 4. Identity and "Claude login mandatory"
+### 3.2 The `claude_subscription` adapter (an `AgentBackend`)
 
-Because of §3, the app **cannot use a Claude account as its identity** or to sync settings with the
-extension. The app has **no accounts at all** in v1: it is local-first, and config lives in files on
-your machine. The future extension pairs with the desktop core using a one-time code (see 10).
-**Open question 3.**
+| Aspect | Specification |
+|--------|---------------|
+| Library | `claude-agent-sdk` (Python), `ClaudeSDKClient` |
+| Login | Done once by the user in a terminal (`claude`, then log in). The adapter checks readiness with a minimal test query when it mounts. Failure → plugin `pending: Claude Code not logged in` with the exact instruction |
+| Environment | The child process is started **without** `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN`, because a key in the environment would silently switch it to API billing |
+| Built-in tools | **None.** `tools=[]`, plus `disallowed_tools` listing every Claude Code built-in (Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, …) as a second guard. A contract test asserts that the session's tool list is exactly our tools |
+| Settings isolation | `setting_sources=[]`, so **no** `~/.claude` skills, memory (`CLAUDE.md`), hooks, plugins or MCP servers load. `cwd` = an empty app-owned directory (`$XDG_STATE_HOME/ai-avatar/claude-cwd`) |
+| System prompt | `system_prompt` = our assembled prompt string (persona + rules + skills index, 07 §4). It replaces Claude Code's own default prompt |
+| Our tools | Exposed with `create_sdk_mcp_server(name="avatar", tools=[…])`, one `@tool` per registered tool, regenerated when the tool registry changes |
+| Permissions | **Enforced inside each tool handler** by our permission engine, which is authoritative. `can_use_tool` is also wired to the same engine, but it is not relied on, because the SDK only calls it when its own permission flow falls through to a prompt |
+| Streaming | `include_partial_messages=True`. Text deltas feed the segmenter exactly like other providers |
+| Turn limit | `max_turns` = `agent.maxSteps` |
+| Model | `model` = config `llm.model` (a Claude Code model alias, default: Claude Code's default) |
+| Conversation continuity | One SDK session per conversation. The session id is stored in the event log, and the session is resumed after an app restart. Our event log remains the record the Conversations window shows |
+| Latency | The client stays connected for the whole conversation, so process start-up happens once, not per turn |
+| Branding | Shown in the UI as **"Claude (your subscription)"**, never as "Claude Code". The Agent SDK's branding rules forbid presenting a product as Claude Code |
+
+### 3.3 Order of Claude options in the UI
+
+1. **Claude (your subscription)**, the default when a logged-in Claude Code is detected
+2. **Claude (API key)**, the `anthropic` ChatModel adapter (§2a)
+3. All other providers (OpenRouter, OpenAI, Gemini, Ollama, …), with API keys or local endpoints
+
+## 4. Identity
+
+The app has **no accounts** in v1: it is local-first, and config lives in files on your machine. A
+Claude subscription is a *model provider*, never the app's identity. The future browser extension
+pairs with the desktop core using a one-time code (see 10), not a Claude login. The Agent SDK rules
+above rule out offering claude.ai login in the extension anyway.
 
 ## 5. Secrets
 

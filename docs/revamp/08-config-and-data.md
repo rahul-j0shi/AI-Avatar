@@ -29,12 +29,14 @@ we generate from the pydantic models. Comments are allowed (JSONC) and parsed wi
     "lipsync": true, "expressions": true, "gestures": true,
     "desktopTools": true, "computerUse": false,
     "mcp": true, "skills": true, "sentimentFallback": true,
-    "claudeCodeBridge": false
+    "bubbleAutoHide": true, "showOnAllWorkspaces": true,
+    "launchAtLogin": false, "latencyOverlay": false        // the master list is 12 §0.4
   },
   "version": 1,
-  "llm":  { "provider": "openrouter", "model": "anthropic/claude-sonnet-5", "visionModel": null,
-            "fallback": { "provider": "local", "model": "llama3.2" } },
+  "llm":  { "provider": "claude_subscription", "model": null, "effort": "low", "visionModel": null,
+            "fallback": { "provider": "local", "model": "<an installed Ollama model>" } },
   "providers": {
+    "claude_subscription": { "adapter": "claude_subscription" },          // your logged-in Claude Code (05 §3)
     "openrouter": { "adapter": "openai_compat", "baseUrl": "https://openrouter.ai/api/v1", "apiKey": {"secret": "openrouter"} },
     "anthropic":  { "adapter": "anthropic", "apiKey": {"secret": "anthropic"} },
     "local":      { "adapter": "openai_compat", "baseUrl": "http://localhost:11434/v1" }

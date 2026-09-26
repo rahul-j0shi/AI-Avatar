@@ -14,7 +14,7 @@ remain open. Re-run this review at the end of every phase.
 | R4 | Better, faster UI technology | 02 §1 (Tauri 2 + React/TS/Vite) | 0, 2 | Covered |
 | R5 | Desktop app now, browser extension next; desktop ops + browser automation | 06 §4 (desktop tools), 10 (extension) | 4, post-v1 | Covered |
 | R6 | Adapter pattern for the whole pipeline (LLM, STT, TTS) | 04 §4, 05 §1–2 | 1, 3, 5 | Covered |
-| R7 | Use the Claude subscription (Claude only for now) | 05 §3 | 5 | **Changed**: API key supported; subscription only via the user's own Claude Code, experimental. Needs your decision (open question 2) |
+| R7 | Use the Claude subscription (Claude only for now) | 05 §3 | 1, 4 | **Decided:** subscription first through the official Agent SDK and your own Claude Code login; API key second |
 | R8 | OpenRouter, Gemini, OpenAI, Anthropic… | 05 §2 | 1, 5 | Covered |
 | R9 | Avatar bottom-right by default; configurable looks and parameters | 02 §3, 03 §2 | 2, 6 | Covered |
 | R10 | Float anywhere, drag and drop | 02 §3 | 2 | Covered |
@@ -24,7 +24,7 @@ remain open. Re-run this review at the end of every phase.
 | R14 | Use DeepSeek's spatiotemporal composability for design decisions | 01 §2 | 1 | Covered |
 | R15 | Everything decoupled; same thing works in the browser via extension | 01 §1, §4; 10 | post-v1 | Covered (door kept open in v1) |
 | R16 | Configure the extension from the desktop panel | 10 §3.8 | post-v1 | Covered |
-| R17 | Claude login mandatory, same account, for extension | 10 §3.2, 05 §4 | post-v1 | **Changed**: pairing code, because of Claude's terms (open question 3) |
+| R17 | Claude login mandatory, same account, for extension | 10 §3.2, 05 §4 | post-v1 | **Changed**: pairing code, because third-party apps may not offer claude.ai login (open question 1) |
 | R18 | Permissions: default read-only; JSON editor for desktop; browser like Claude for Chrome | 06 §3, 10 §3.4 | 4 | Covered |
 | R19 | Double-click → listen; type area; choose speak / bubble | 02 §3–5, 04 §2 | 2–3 | Covered |
 | R20 | Bubble shows current message only; Conversations shows everything | 02 §4, 02 §2 | 2 | Covered |
@@ -37,6 +37,8 @@ remain open. Re-run this review at the end of every phase.
 | R27 | Portfolio-ready for the job search | README principle 7; 09 "v0.5 portfolio preview"; Phase 7 | 4a, 7 | Covered |
 | R28 | Ubuntu only for now | 02 §1 (Wayland/XWayland decisions, portals, PipeWire), 06 §4, 09 packaging | 0–7 | Covered |
 | R29 | Don't focus on language; reply in the input language | 03 §4.6 | 1, 3 | Covered |
+| R30 | No dates or durations; sequence, scope and clarity only | 09 | — | Covered |
+| R31 | Every feature specified in detail with hard boundaries | 12 | all | Covered |
 
 ## 2. Gap log (review of the first version of this plan)
 
@@ -80,7 +82,7 @@ remain open. Re-run this review at the end of every phase.
 | G36 | Always-on resource budget (RAM/CPU) undefined | Medium | 01 §3a |
 | G37 | Executor jobs can't be cancelled (the plan implied they could) | Low | 01 §5 |
 | G38 | No way to run the app without API keys (demo, CI, recruiters) | Medium | 09 Phase 1 fake providers + `--demo` |
-| G39 | No effort estimates and no earlier portfolio milestone | Medium | 09 effort table + v0.5 |
+| G39 | No earlier portfolio milestone | Medium | 09 v0.5 milestone (effort estimates were added, then removed at your request, G62) |
 | G40 | No end-to-end or platform test layer; no licence review or clean-machine test | Medium | 09 testing + Phase 7 |
 
 **Second review, after the Ubuntu-only and language decisions:**
@@ -98,6 +100,24 @@ remain open. Re-run this review at the end of every phase.
 | G49 | Snap-packaged Firefox/Chromium restrict native messaging (extension) | Low (post-v1) | 10 §3.7 |
 | G50 | Packaging: glibc compatibility across 24.04/26.04, `.deb` dependencies | Medium | 01 §7 CI, 09 Phase 7 |
 
+**Third review: re-verification against current docs (Agent SDK, Anthropic API) and your decisions:**
+
+| # | Gap found | Severity | Fixed in |
+|---|-----------|----------|----------|
+| G51 | In the Agent SDK, `allowed_tools` only *auto-approves*, it does not restrict, and `can_use_tool` runs only when the SDK's permission flow falls through to a prompt. The earlier plan relied on both | **Critical** | 05 §3.2: `tools=[]` + `disallowed_tools`; permissions enforced inside our tool handlers; contract test |
+| G52 | By default the Agent SDK loads `~/.claude` settings, skills, `CLAUDE.md`, hooks and MCP servers into the session | High | 05 §3.2: `setting_sources=[]`, empty app-owned `cwd` |
+| G53 | An `ANTHROPIC_API_KEY` in the environment silently switches Claude Code from subscription to API billing | Medium | 05 §3.2: stripped from the child environment |
+| G54 | Our history windowing and barge-in truncation *edit* sent history, which newer Claude models reject when it contains thinking blocks | High | 05 §2a (append-only; server compaction and context editing), 06 §1 |
+| G55 | `refusal` stop reason unhandled; forced `tool_choice` would 400 | Medium | 05 §2a |
+| G56 | Volatile facts (time, focused app) in the system prompt invalidate the prompt cache every turn | Low | 07 §4, 05 §2a |
+| G57 | `sounddevice` can't target a specific PipeWire node (the echo-cancelled source) | Medium | 04 §1, 02 §1.4: `pw-record` subprocess |
+| G58 | Cursor-following gaze is impossible outside our window under XWayland | Low | 03 §4.5 |
+| G59 | Clicking the avatar steals keyboard focus from the user's app | Medium | 02 §3: non-focusable by default |
+| G60 | VRoid Studio has no Linux build; default avatar source undefined | Medium | 03 §1: CC0 preset exported once; CC0 fallback pack |
+| G61 | The dev machine can't measure 26.04 or NVIDIA performance | Medium | 02 §1.3 (VM functional check; NVIDIA best-effort), risk below |
+| G62 | Time estimates conflicted with your "sequence and scope only" instruction | Low | 09 (estimates removed) |
+| G63 | Features lacked exact boundaries (limits, defaults, out-of-scope lists, acceptance criteria), leaving room for over-engineering | High | 12 (new authoritative feature specification) |
+
 ## 3. Risk register (what can still go wrong)
 
 | Risk | Likelihood | Impact | Mitigation / trigger |
@@ -109,7 +129,8 @@ remain open. Re-run this review at the end of every phase.
 | Echo cancellation is too weak for barge-in on laptop speakers | Medium | Medium | PipeWire WebRTC AEC first; then headphones-only barge-in or duck-and-gate; the feature can be toggled |
 | Kokoro gives no usable timing | Low–Medium | High | Tier B via cloud TTS, or Tier C forced alignment moves into Phase 3b |
 | Lip sync looks "off" despite correct data | Medium | High | Lip-sync lab + tuning parameters (lookahead, attack/release) in `avatar.json`; vrm-basic fallback |
-| Anthropic changes subscription terms again | High | Low (by design) | The bridge is one optional plugin; the API-key path is unaffected |
+| Anthropic changes subscription terms again | High | Medium (subscription is now the default Claude path) | Same adapter layer has the API-key path; switching is one config value; Spike E gate; re-check terms before any public release |
+| Rendering or driver problems on 26.04 or NVIDIA that the dev machine can't reproduce | Medium | Medium | VM functional checks for 26.04; NVIDIA documented as best-effort with the env workaround; community bug reports triaged post-release |
 | Native deps lack Python 3.14 wheels | Low | Medium | Spike C → pin 3.13 (ADR) |
 | Scope creep delays the job-search deliverable | High | High | v0.5 portfolio preview cut; features beyond it go to "next" |
 | Unsigned builds trigger OS warnings (SmartScreen, Gatekeeper) | High | Low | README install notes; signing when affordable |
@@ -133,6 +154,5 @@ Each piece of structure has to justify itself against a concrete requirement:
 
 ## 5. Still open (needs your answer)
 
-The three open questions in the [README](README.md#open-questions-for-you) (Claude path, extension
-pairing, resume). None of them blocks Phase 0. The platform (Ubuntu) and language (agnostic) questions
-are decided.
+Two non-blocking questions remain in the [README](README.md#open-questions-not-blocking): extension
+pairing and resume alignment. Everything else is decided (see the README's *Decided* list).

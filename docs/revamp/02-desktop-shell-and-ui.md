@@ -53,10 +53,14 @@ path on Linux is mature, at the cost of ~100+ MB and a Node runtime.
 | Python sidecar | Built in (`externalBin`) | Manual `child_process` |
 | Portfolio signal | Rust + modern | Common |
 
-**Decision:** build Spike A **twice** (Tauri and Electron, 1–2 days each, the same `packages/avatar`
+**Decision:** build Spike A **twice** (Tauri and Electron, the same `packages/avatar`
 page in both) and choose by measurement on Ubuntu 24.04 and 26.04, on an Intel/AMD iGPU and on
 NVIDIA:
 
+- **Measured on the primary dev machine: Ubuntu 24.04 + Intel/AMD (Mesa) graphics.** Ubuntu 26.04
+  is checked functionally in a VM (GNOME 50, Wayland-only). VM graphics are not representative, so
+  that check is correctness-only. **NVIDIA is not available for testing.** It is a documented,
+  best-effort configuration (the env workaround in 01 §3a) and listed as a known risk.
 - The idle avatar stays under 5% CPU at 30 fps, and speaking holds 60 fps without dropped frames.
 - A transparent background with no black rectangle, click-through via input region, and
   always-on-top + drag under XWayland all work.
@@ -69,7 +73,7 @@ Prefer **Tauri** if it meets all of these, and pick **Electron** otherwise. Eith
 
 - **Mic capture happens in the core, not the webview.** WebKitGTK's `getUserMedia` depends on
   GStreamer plugins and its echo cancellation is uncertain. The core captures through **PipeWire**
-  (`sounddevice` via PipeWire's PulseAudio/ALSA compatibility) and runs VAD right next to it. The
+  with a `pw-record` subprocess targeting a chosen node (04 §1) and runs VAD right next to it. The
   protocol still lets a surface stream mic audio (the browser extension will).
 - **Echo cancellation for barge-in:** PipeWire's `libpipewire-module-echo-cancel` (the WebRTC
   engine) in **monitor mode** uses whatever the system is playing as the echo reference, so it
@@ -124,6 +128,11 @@ so they cost nothing when unused.
   default.
 - **Click vs double-click vs drag** are told apart by a small gesture recogniser (distance and time
   thresholds). A single click does nothing, so the avatar never triggers by accident.
+- **Focus:** clicking the avatar would normally steal keyboard focus from the app you're working in.
+  The avatar window is therefore **non-focusable by default** (X11 input hint `accept_focus=false`)
+  and becomes focusable only while the type box or an approval bubble needs the keyboard. After that
+  it gives focus up. Wayland doesn't let us hand focus back to the previous app explicitly, so this is
+  best-effort and verified in Spike D.
 - **Double-click → listen.** Toggles listening. The avatar shows a *listening* state (pose, glow, ear
   cue). A second double-click, a VAD end-of-speech or Esc stops it.
 - **Click-through:** the window is bigger than the avatar (room for the bubble). The renderer reports
@@ -148,7 +157,7 @@ so they cost nothing when unused.
   *only* open while this glow or the speaking state with barge-in is on), thinking, speaking, acting
   (tool chip), awaiting approval (bubble), error (bubble + brief `sad`), booting/core down (greyed
   avatar + tooltip).
-- **Tray icon** (optional, Phase 6): Show/Hide, Configure, Exit, so the app stays reachable if the
+- **Tray icon** (Phase 2, because it is the recovery path if the avatar is hidden or off-screen): Show/Hide, Talk, Configure, Exit, so the app stays reachable if the
   avatar is hidden.
 - **Global hotkeys** (through GNOME custom shortcuts, §1.2): **Stop** (e.g. `Ctrl+Alt+.`) ships in
   **Phase 4**, together with desktop tools, because a kill switch must exist before the assistant can
@@ -178,12 +187,13 @@ goes to the bubble.
 
 ## 6. Configure panel
 
-Left navigation plus content. Every section maps to one config file or subtree (see 08). Saves are
+Left navigation plus content. **The exhaustive section list is 12 F08**; the table below is the
+overview. Every section maps to one config file or subtree (see 08). Saves are
 validated against the pydantic JSON Schema and applied live through the kernel (no restart).
 
 | Section | Contents |
 |---------|----------|
-| **Models & accounts** | Providers list (add/remove, test connection), API keys (saved to keychain), model per role (`main`, optional `vision`), experimental Claude Code bridge status |
+| **Models & accounts** | Providers list (add/remove, test connection), API keys (saved to keychain), model per role (`main`, optional `vision`), Claude effort, "Claude (your subscription)" status |
 | **Voice** | Voice input on/off, mic source (echo-cancelled source recommended), STT provider, VAD sensitivity, voice output on/off, TTS provider + voice + speed, preview button |
 | **Avatar looks** | Monaco editor on `avatar.json` (schema-validated) with a live preview pane; import VRM file; reset to default (see 03) |
 | **Persona** | Markdown editor for `persona.md` (name, personality, tone, do/don't) with a "test in bubble" button |

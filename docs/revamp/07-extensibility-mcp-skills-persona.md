@@ -107,8 +107,10 @@ Use [happy] when greeting, [thinking] before long answers. Never read code aloud
 2. Operating rules (built in: brevity for speech, expression-tag syntax, safety and untrusted-content
    rules)
 3. Skills index (name + description lines)
-4. Environment facts (OS, date/time, active window title if `screen` tools are on)
-5. Conversation history (windowed; older turns summarised when over budget, as a later milestone)
+4. Conversation history (append-only; context strategy per adapter, see 05 §2)
+5. Volatile environment facts (date/time, focused app when `apps` tools are on) are **not** part of
+   the system prompt. They go into the current turn as a mid-conversation system message where the
+   model supports it, otherwise at the top of the user message. This keeps the cached prefix stable
 
 Each section is an effect registered by its owning plugin, so turning a feature off removes its
 section automatically.
