@@ -1,6 +1,0 @@
-openai
-minimax
-pyaudio
-streamlit
-python-dotenv
-requests
