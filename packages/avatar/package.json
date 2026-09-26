@@ -3,5 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Svara's shell-independent VRM renderer and performance player."
+  "description": "Svara's shell-independent VRM renderer and performance player.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@pixiv/three-vrm": "3.5.5",
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@types/three": "0.186.0"
+  }
 }

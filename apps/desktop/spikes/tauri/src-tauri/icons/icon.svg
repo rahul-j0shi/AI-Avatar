@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="svara" x1="18" y1="14" x2="108" y2="114" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#b7a2ff" />
+      <stop offset="1" stop-color="#7357e8" />
+    </linearGradient>
+  </defs>
+  <circle cx="64" cy="64" r="58" fill="url(#svara)" />
+  <path
+    d="M91 39c-8-7-17-10-27-10-14 0-25 7-25 18 0 12 10 16 25 20 12 3 17 6 17 12 0 7-7 11-17 11-11 0-21-4-29-12"
+    fill="none"
+    stroke="#fff"
+    stroke-linecap="round"
+    stroke-width="11"
+  />
+</svg>

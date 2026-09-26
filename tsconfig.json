@@ -2,6 +2,7 @@
   "compilerOptions": {
     "allowJs": false,
     "isolatedModules": true,
+    "jsx": "react-jsx",
     "lib": ["ES2024", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleDetection": "force",
@@ -13,5 +14,10 @@
     "target": "ES2024",
     "verbatimModuleSyntax": true
   },
-  "include": ["apps/desktop/src/**/*.ts", "apps/desktop/src/**/*.tsx", "packages/**/*.ts"]
+  "include": [
+    "apps/desktop/src/**/*.ts",
+    "apps/desktop/src/**/*.tsx",
+    "apps/desktop/vite.config.ts",
+    "packages/**/*.ts"
+  ]
 }
