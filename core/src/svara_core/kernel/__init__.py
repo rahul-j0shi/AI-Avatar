@@ -1,0 +1,1 @@
+"""Reversible plugin kernel."""

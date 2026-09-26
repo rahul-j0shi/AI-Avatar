@@ -10,3 +10,16 @@ implementation backlog is [`docs/revamp/13-implementation-guide.md`](docs/revamp
 
 Implementation is currently in Phase 0. The previous browser-based proof of concept is preserved in
 the `v0-prototype` Git tag.
+
+## Development bootstrap
+
+The repository uses Node 24 with pnpm 12 and uv-managed Python 3.14. Until T0.3 adds the unified root
+commands, bootstrap the two workspaces directly:
+
+```bash
+uv sync --project core
+corepack pnpm install
+```
+
+VRM and VRMA assets are tracked with Git LFS. Install Git LFS before adding or checking out model
+assets; the first production avatar is intentionally deferred to T0.12.

@@ -1,0 +1,7 @@
+packages:
+  - apps/desktop
+  - packages/*
+
+# Corepack enforces packageManager. Avoid pnpm 12's environment lockfile document, which current
+# dependency scanners can misread as an empty project.
+pmOnFail: ignore

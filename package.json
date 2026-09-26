@@ -1,0 +1,12 @@
+{
+  "name": "svara",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A voice-first desktop character with native lip sync.",
+  "license": "MIT",
+  "packageManager": "pnpm@12.7.0",
+  "engines": {
+    "node": ">=24 <25",
+    "pnpm": ">=12 <13"
+  }
+}

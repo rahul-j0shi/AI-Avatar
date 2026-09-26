@@ -1,0 +1,7 @@
+{
+  "name": "@svara/protocol",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Generated TypeScript types for Svara's local protocol."
+}

@@ -1,0 +1,7 @@
+{
+  "name": "@svara/avatar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Svara's shell-independent VRM renderer and performance player."
+}
