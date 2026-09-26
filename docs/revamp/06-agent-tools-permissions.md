@@ -76,6 +76,21 @@ Rule syntax: `capability(resource-glob)`. The capability part can use `*` wildca
 `(…)` means any resource. Paths are normalised (`~`, symlinks resolved, `..` collapsed) **before**
 matching, so `~/Documents/../.ssh/id_rsa` can't slip through.
 
+**Cross-platform matching rules** (these are where permission systems usually break):
+
+- Paths are expanded (`~`, env vars), made absolute, `realpath`-resolved (symlinks, `..`) and then
+  matched. A path that doesn't exist yet (a write target) is resolved through its nearest existing
+  parent.
+- On **Windows**, matching is case-insensitive, `\` and `/` are equivalent, drive letters are
+  normalised, and `\\?\` / UNC prefixes are handled. On macOS, matching is case-insensitive by default
+  (APFS default). On Linux it is case-sensitive.
+- `shell.exec` rules match the **argv** (`git status` matches `["git","status"]`), never a shell
+  string. Commands run without a shell, so `git status; rm -rf ~` can't be smuggled in.
+- For tools with several resources (e.g. `fs.move(src, dst)`), **every** resource must pass. `move`
+  needs `fs.write` on both source and destination.
+- Known limitation: a check-then-use race (a file swapped between the check and the use) is out of
+  scope for a single-user desktop app, and it is documented.
+
 ### 3.2 Evaluation
 
 ```
@@ -129,3 +144,32 @@ execute → screenshot. It is off by default and experimental in v1.
 - **Kill switch:** Esc/hotkey or right-click → Stop cancels the running turn (TaskGroup cancel) and
   any computer-use loop immediately.
 - **No network tools in v1** except through MCP servers that you add explicitly.
+
+## 6. Trust model: what the permission engine does *not* cover
+
+It gates **tool calls the agent makes**. It cannot sandbox code that the user installs:
+
+- **MCP servers** are separate processes running with your user's full privileges. A malicious server
+  can do anything, whatever `permissions.json` says. So adding a server shows a one-time warning with
+  the exact command that will run. Servers from `npx`/`uvx` are pinned to a version where possible,
+  and the panel shows the resolved command.
+- **Skill scripts** only run through `shell.exec`, so they *are* gated. The skill's instructions,
+  though, are prompt text written by whoever made the skill. Imported skills are therefore marked
+  "untrusted until reviewed", and their body is shown before enabling.
+- The frontmatter field `allowed-tools` in `SKILL.md` is **ignored for permissions in v1**. A skill
+  can never widen permissions. (Later it may *narrow* what the agent can use while the skill is
+  active.)
+- **Computer use** can do anything a user can do with a mouse and keyboard. Extra guards: a
+  sensitive-app blocklist (password managers, banking apps, the OS security settings, our own
+  Configure window) where input actions are always denied; a visible "controlling your computer"
+  state; and every action logged with a screenshot thumbnail.
+
+## 7. Conversations and memory
+
+- A **conversation** is the unit of history and context. A new one starts automatically after 30
+  minutes of inactivity (configurable), or explicitly via menu → *New conversation*. The bubble shows
+  a subtle "new conversation" marker when this happens.
+- History sent to the model is windowed to the context budget (05 §2).
+- **Long-term memory** (facts about you across conversations) is **not in v1**. It is on the post-v1
+  list, and the design would be an explicit, user-visible memory file plus a `memory.write` tool
+  (ASK by default). v1 relies on the persona file for anything the user wants remembered.

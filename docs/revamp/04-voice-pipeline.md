@@ -35,6 +35,14 @@ typed text ─►│                    └──────► text deltas ─
   (`. ! ? ।` plus newline) *and* the sentence has ≥ 4 words, or when it reaches 180 chars at a comma.
   It extracts `[expression]` tags into cues and skips markdown and code blocks for speech (they still
   show in the bubble). The **first sentence** is allowed to be short, which cuts time-to-first-audio.
+- **Segmenter edge cases:**
+  - When the model starts a **tool call** mid-text, the segmenter flushes whatever partial sentence
+    it holds, so "Let me check your Downloads folder" is spoken while the tool runs.
+  - **Reasoning/thinking deltas** (Anthropic thinking blocks, OpenRouter `reasoning`) are never
+    spoken or shown in the bubble. They are stored in the event log, and Conversations can show them
+    collapsed.
+  - URLs, file paths and code are replaced in speech with short phrases ("a link", "the file
+    report.pdf").
 - **TTS:** at most 2 sentences are synthesised ahead of playback (bounded queue), so we don't waste
   money on text that gets interrupted.
 - **Response modes:** *speak + bubble* runs everything. *Bubble only* skips TTS and performance (the
@@ -79,6 +87,31 @@ class TextToSpeech(Protocol):
 Each adapter is a plugin that `provide`s `stt` or `tts`. Only one of each is active at a time, chosen
 in config. There is a **shared contract test suite**: every adapter must pass the same tests against
 recorded fixtures (cassettes), so adding a provider is a checklist, not a guess.
+
+**Credentials differ by provider,** so the secrets model supports three kinds: an API key, a key plus
+an extra field (Azure needs `region`), and a **credential file** (Google Cloud STT uses a
+service-account JSON, which is imported into the keychain as a blob and never kept as a loose file).
+
+**Local model files** (Whisper, Kokoro, Silero) are downloaded on first use, not bundled. See 08 §6.
+
+## 4a. Failure handling (every stage)
+
+| Failure | Behaviour |
+|---------|-----------|
+| No mic / mic permission denied | Voice input plugin goes `pending: needs microphone`. Double-click opens the type box instead and explains why |
+| STT provider error / timeout | One retry. If it fails again, the avatar says (bubble) "I couldn't hear that — try again or type". The turn ends and the audio is not stored |
+| Empty or noise-only transcript | No turn is started (a filter on minimum words and confidence). This prevents replies to coughs |
+| LLM 401 / invalid key | Turn fails with "Your <provider> key was rejected — open Configure". The provider plugin is marked with an error |
+| LLM 429 / 5xx / network | Retry with exponential backoff (max 2 retries, only *before* any text is streamed). After text has started, the error ends the turn gracefully with a partial answer marker |
+| Offline | Detected by connection errors. If a local fallback provider is configured (`llm.fallback`, e.g. Ollama), the turn is retried there, and the bubble shows a small "offline: using local model" chip |
+| TTS error | The turn continues in bubble-only mode for that turn (the text is never lost because of voice) |
+| Viseme failure | Fall back to Tier D. Lip sync is never allowed to block audio |
+
+Errors are typed (`ProviderAuthError`, `ProviderRateLimit`, `ProviderUnavailable`, `InvalidRequest`),
+and each adapter maps its vendor errors to them. That mapping is part of the contract tests.
+
+**Fully offline mode is possible,** and it is a good privacy and portfolio point: faster-whisper +
+Kokoro + Ollama (a local LLM) with no network at all. It is documented and tested in Phase 5.
 
 ## 5. Latency budget (targets, measured and shown in the debug overlay)
 

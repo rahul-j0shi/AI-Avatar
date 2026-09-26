@@ -159,11 +159,43 @@ surface tools are mounted as plugins *inside the core* (see 10).
 Persona, skills, tool guidance and the performance instructions (expression tags) each contribute a
 section. Unmounting a skill removes its section.
 
+**Plugin failure isolation.** If a plugin's `apply()` raises, or its background task crashes, its fiber
+goes to `failed`. Its partial effects are reverted and the error (plugin id, message, hint) is published
+as `plugin.status`. Every other plugin keeps running. The Features panel lists every plugin with its
+state (`active · pending: waiting for <service> · failed: <reason> · disabled`), so "why doesn't voice
+work?" always has a visible answer. A failed plugin is retried when its config changes or when the
+user clicks *Retry*. There is no automatic retry loop.
+
+**Which plugins exist.** v1 plugins are **built-in only**, listed in one static registry
+(`avatar_core/plugins.py`). There is no loading of third-party Python code: user extensibility in v1 is
+MCP servers, skills and persona, which are data or out-of-process. A Python entry-point mechanism for
+third-party plugins is a post-v1 item, because loading arbitrary Python into the core would bypass
+the permission model.
+
+## 3a. Process lifecycle (shell ↔ core)
+
+| Concern | Decision |
+|---------|----------|
+| Start | The shell generates a random 256-bit token and spawns the core sidecar with it in an env var (`AVATAR_TOKEN`). The core binds `127.0.0.1:0` and prints one JSON line `{"port": N, "pid": P, "protocol": 1}` on stdout. The shell reads it and gives port + token to its webviews through a Tauri command (`get_core_endpoint`), never in a URL |
+| Readiness | The shell shows the avatar in a `booting` state until the core answers `hello`. Core startup target: under 1.5 s to `hello`. Heavy models load lazily (below) |
+| Orphans | The core exits when its stdin closes (the shell holds the pipe), so a crashed shell never leaves a zombie core |
+| Crash | If the core exits unexpectedly, the shell restarts it with backoff (1 s, 2 s, 5 s, then stop and show "Core stopped: View logs / Restart") |
+| Single instance | `tauri-plugin-single-instance`: launching the app again focuses the existing avatar |
+| Launch at login | `tauri-plugin-autostart`, off by default, toggle in Features |
+| Exit | Menu → Exit: the shell sends `shutdown`. The core cancels the current turn, flushes the event log, stops MCP servers (SIGTERM, then kill after 3 s) and exits. The shell waits up to 5 s, then kills it |
+| Sleep/wake | On resume from sleep, surfaces reconnect (below) and MCP HTTP servers are re-checked |
+
+**Resource budget (always-on app).** Idle target: < 250 MB RAM for the core with no local models
+loaded, and < 3% CPU. Local models (Whisper, Kokoro, Silero) load **on first use** and unload after 10
+idle minutes (configurable). The first-use cost is hidden by preloading when the user double-clicks,
+since listening takes at least a second anyway. Memory while all local models are loaded is measured
+in Phase 3 and published.
+
 ## 4. Protocol
 
-- **Transport:** one WebSocket per surface window at `ws://127.0.0.1:<port>/ws`. The port is random.
-  The shell passes the port and a random bearer token to its webviews at launch. Connections without
-  the token are rejected, and the core binds only to loopback.
+- **Transport:** one WebSocket per surface window at `ws://127.0.0.1:<port>/ws`. The port is random
+  (see 3a). The token must be the first message on every connection, and connections without it are
+  rejected. The core binds only to loopback.
 - **Framing:** text frames carry JSON messages `{ "type": "...", "id"?: "...", ...payload }`. Binary
   frames carry audio with a small header: `stream_id (u32) | seq (u32) | kind (u8) | pcm bytes`.
 - **Single source of truth for types:** messages are pydantic models in `core/protocol/messages.py`.
@@ -181,7 +213,8 @@ Message catalogue (v1):
 | surface → core | `config.get` / `config.patch` | Settings panel reads and writes |
 | surface → core | `conversation.list` / `conversation.get` | Conversations window |
 | surface → core | `tools.register` / `tool.result` | *Reserved for the extension:* surface-provided tools |
-| core → surface | `state` | Avatar state machine: `idle · listening · thinking · speaking · acting · error` |
+| core → surface | `tool.call` | *Reserved for the extension:* ask the surface to run one of its registered tools |
+| core → surface | `state` | Assistant state (see the state machine below) |
 | core → surface | `transcript` | Partial and final user transcript |
 | core → surface | `assistant.delta` / `assistant.done` | Streaming text for bubble and log |
 | core → surface | `performance.segment` | One spoken sentence: audio (binary, same stream id), viseme track, amplitude envelope, expression/gesture cues, text span |
@@ -189,6 +222,67 @@ Message catalogue (v1):
 | core → surface | `tool.activity` | Tool started/finished (shown as small status on the avatar) |
 | core → surface | `permission.request` | Needs user approval (rendered as a bubble with buttons) |
 | core → surface | `config.changed` / `error` | Housekeeping |
+| surface → core | `secrets.set` / `secrets.delete` | **Write-only** secret storage. `config.get` never returns secret values, only `{set: true, last4}` |
+| surface → core | `conversation.new` | Start a new conversation (menu item) |
+| surface → core | `shutdown` | Graceful exit (shell only) |
+| core → surface | `snapshot` | Sent right after `hello`: current state, active turn (if any), pending permission requests, config version, plugin statuses |
+| core → surface | `plugin.status` | A plugin became active / pending / failed / disabled |
+| core → surface | `model.download` | Progress of first-use model downloads (see 08 §6) |
+
+**Routing.** Each connection says in `hello` which *topics* it wants. The avatar window subscribes to
+`turn` (state, transcript, deltas, performance, tool activity, permission requests). Conversations
+subscribes to `conversation`. Configure subscribes to `config` and `plugin`. Only the avatar surface
+receives `performance.*` and audio, and only the avatar surface may send mic audio. If two surfaces
+claim the avatar role (later: desktop + extension overlay), the most recently *focused* one gets
+performance output, and the other shows the text only.
+
+**Reconnect.** The WS client reconnects with backoff. On reconnect it gets a fresh `snapshot`. If the
+avatar surface was disconnected mid-turn, the core cancels the running performance (audio can't be
+resumed) but keeps the text and tool results, so nothing is lost from the conversation.
+
+**Hardening.** Bind to loopback only. Require the token as the first message (not a query string, so
+it never lands in logs). Check the `Origin` header (allow only the Tauri origins, later the extension
+host). Limit frame size to 1 MB and apply a per-connection message rate limit. The config dir is created
+with user-only permissions (0700 on POSIX).
+
+**Asset serving.** The core also serves `GET /assets/<path>` (token in the `Authorization` header,
+read-only, rooted at the config dir's `avatar/` folder) so any surface, desktop or future extension,
+loads `.vrm`/`.vrma` files the same way.
+
+**Protocol versioning.** `hello.protocol` is an integer. The core accepts the current and previous
+version. Anything else gets a clear `error` ("update the extension/app").
+
+**Avatar/assistant state machine** (owned by the core; surfaces only render it):
+
+States: `booting · idle · listening · thinking · speaking · acting · awaiting_approval · error`.
+
+| From | Event | To |
+|------|-------|----|
+| booting | core answers `hello` | idle |
+| idle | double-click / push-to-talk | listening |
+| idle | typed input | thinking |
+| listening | VAD end-of-speech with a non-empty transcript | thinking |
+| listening | cancel, or no speech for 8 s, or empty/noise transcript | idle |
+| thinking | first sentence ready (voice on) | speaking |
+| thinking | text done (bubble-only mode) | idle |
+| thinking / speaking | model requests a tool | acting |
+| acting | the permission engine says ASK | awaiting_approval |
+| awaiting_approval | Allow / Deny / timeout | acting (allowed) or thinking (denied; the model is told) |
+| acting | tool finished | thinking |
+| speaking | last segment played and the model is done | idle |
+| speaking | barge-in (user speech > 250 ms) | listening |
+| any | Stop (menu / hotkey) | idle |
+| any | unrecoverable error in the turn | error → idle after the message is shown |
+
+
+- **New input while busy:** any new user input (typed or spoken) while `thinking`, `speaking` or
+  `acting` cancels the current turn and starts a new one. This is the same mechanism as barge-in, so
+  there is no queueing of user messages.
+- **While `awaiting_approval`:** the approval bubble must be answered or it times out. Other typed
+  input is held until then (the type box shows "Answer the permission request first"). Approvals are
+  **buttons only**, never voice, so ambient speech can't approve an action.
+- **Bubble in speak-only mode:** permission requests and errors always show a bubble, whatever the
+  response mode.
 
 ## 5. Concurrency model (and the Python 3.14 question)
 
@@ -212,6 +306,9 @@ in any Python version.
     pending tool calls together, because structured concurrency guarantees nothing leaks.
   - CPU-bound inference (Whisper, Kokoro, Silero, G2P) runs in a dedicated `ThreadPoolExecutor`
     through `loop.run_in_executor`, with at most one job per model so they don't thrash.
+    **Caveat:** cancelling a turn cannot stop a thread that is already running inference. The job
+    finishes and its result is discarded. We keep jobs short (one sentence or one utterance) so a
+    cancelled job wastes at most a few hundred ms.
   - Plugins' background work uses `ctx.spawn()`, so it is cancelled on unmount.
 
 ## 6. Repository layout (target)

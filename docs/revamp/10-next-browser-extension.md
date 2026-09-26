@@ -36,7 +36,12 @@ Paired mode comes first because it reuses 100% of the core.
    content always treated as untrusted (the taint rule from 06 §5).
 5. **Avatar in the page:** `packages/avatar` renders in a shadow-DOM overlay or the side panel. The
    same `PerformancePlayer` and the same protocol messages.
-6. **Configuration:** the extension's own settings page is minimal and links to *Configure* in the
+6. **Which surface talks:** if both the desktop avatar and the in-page overlay are active, the most
+   recently focused one gets voice and performance output (01 §4 routing).
+7. **Browsers:** Chrome and Edge first (same Manifest V3 and native-messaging APIs). Firefox needs a
+   separate native-messaging manifest and is later. The desktop installer registers the
+   native-messaging host for each installed browser.
+8. **Configuration:** the extension's own settings page is minimal and links to *Configure* in the
    desktop app. Everything is still configured in one place, as you wanted.
 
 ## 4. What v1 must do to keep this door open (already in the plan)

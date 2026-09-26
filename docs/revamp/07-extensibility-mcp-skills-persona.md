@@ -26,6 +26,14 @@ each can be toggled individually.
   treated as a *hint*, so default policy for MCP tools is ASK unless you allow them). It also listens
   for `tools/list_changed` and re-registers. On unmount everything is removed and the process is
   terminated.
+- **Runtime prerequisites:** most stdio servers need `node`/`npx` or `uv`/`uvx` installed on your
+  machine, and the app does not bundle them. If the command isn't found, the server's status is
+  "`npx` not found — install Node.js" with a link, instead of a cryptic spawn error. The PATH used to
+  spawn servers is your login-shell PATH (resolved once at startup). This matters on macOS, where GUI
+  apps don't inherit the terminal PATH.
+- **Timeouts:** connect 20 s, tool call 60 s (per-server override). A hung server never blocks a
+  turn forever.
+- **Trust:** see 06 §6. MCP servers run outside the permission engine's reach.
 - **Resources and prompts** (MCP features beyond tools) come in a later milestone. Tools first.
 - **Status in the panel:** connected / connecting / error (stderr tail) / number of tools, with a
   per-server toggle.
@@ -58,7 +66,10 @@ description: Fill the monthly expense template from receipts in ~/Downloads/rece
 - **Progressive disclosure** (the same idea as Claude's skills): only `name + description` of each
   enabled skill goes into the system prompt. The agent gets a built-in tool `skills.load(name)` that
   returns the full body (and lists resources) when it decides the skill is relevant. That keeps the
-  prompt small even with many skills.
+  prompt small even with many skills. `skills.load` has capability `skills.read` (effect `read`), so
+  it is allowed in read-only mode.
+- **Skill trust:** skills imported from elsewhere start disabled and marked "review before
+  enabling" (06 §6). Skills you write in the app are trusted.
 - **One plugin per skill.** Mount registers its prompt line and resources. Editing the file triggers a
   reconfigure, and deleting it triggers an unmount.
 - **Writing skills in the app:** *Configure → Skills → New* opens a template in the editor, validates
@@ -83,7 +94,10 @@ Use [happy] when greeting, [thinking] before long answers. Never read code aloud
 ```
 
 - The `persona` plugin registers it as the first prompt section. Frontmatter can override voice and
-  language (applied via config reconfigure).
+  language (applied via config reconfigure). `language` also drives the output script and G2P path
+  (03 §4.6), so the text, the voice and the lip sync always agree.
+- If the voice named in frontmatter doesn't exist in the active TTS provider, the plugin warns in the
+  panel and uses the provider default. A persona never breaks voice output.
 - The panel gives an editor with a live "test in bubble" button. Multiple personas (switchable from
   the context menu) are a later milestone. The file format already allows it (`personas/*.md`).
 

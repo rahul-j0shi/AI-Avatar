@@ -31,7 +31,9 @@ we generate from the pydantic models. Comments are allowed (JSONC) and parsed wi
     "mcp": true, "skills": true, "sentimentFallback": true,
     "claudeCodeBridge": false
   },
-  "llm":  { "provider": "openrouter", "model": "anthropic/claude-sonnet-5", "visionModel": null },
+  "version": 1,
+  "llm":  { "provider": "openrouter", "model": "anthropic/claude-sonnet-5", "visionModel": null,
+            "fallback": { "provider": "local", "model": "llama3.2" } },
   "providers": {
     "openrouter": { "adapter": "openai_compat", "baseUrl": "https://openrouter.ai/api/v1", "apiKey": {"secret": "openrouter"} },
     "anthropic":  { "adapter": "anthropic", "apiKey": {"secret": "anthropic"} },
@@ -57,6 +59,13 @@ sends segments without visemes. One mechanism, and no flag checks in business lo
 3. Valid → diff the old and new plugin trees → `mount` / `unmount` / `reconfigure` only the changed
    entries.
 4. Broadcast `config.changed` so all windows refresh.
+
+A write from the panel triggers the watcher too, so the loader skips reloads whose content hash
+equals the last applied one. That prevents double reloads.
+
+**Beyond the `features` block, every plugin entry accepts `"enabled": false`** (each provider, MCP
+server, skill and tool group). "The user can turn any feature on and off" is thus a property of the
+loader, not a list someone has to keep complete.
 
 Writes are atomic (write temp + rename). Machine-written files (`permissions.local.json`, UI position)
 are separate from human-edited ones, so we never rewrite your comments.
@@ -88,6 +97,19 @@ CREATE INDEX events_kind ON events(kind, ts);
 - Retention setting (default: keep forever; option: 30/90 days). *Clear history* is in Advanced.
 - Audio is **not stored** by default (a privacy default; optional debug toggle).
 
+## 4a. Versioning and migrations
+
+- Every config file has `"version"`. On startup the loader runs ordered migration functions
+  (`v1 → v2 …`), writes a backup (`config.json.bak-v1`) first, and then writes the migrated file. It
+  never silently drops unknown keys: they are kept, and a warning is shown.
+- SQLite uses `PRAGMA user_version` with numbered migration scripts, applied in a transaction at
+  startup.
+- **First run:** if no config dir exists, the core writes commented default files (read-only
+  permissions, local STT/TTS, no LLM provider yet) and the shell opens onboarding (Phase 6). Before
+  Phase 6, the Models section of Configure is enough.
+- **Export / import:** Advanced → *Export settings* zips all config files, persona and skills (never
+  secrets and never the DB), which makes it easy to move machines or share a setup.
+
 ## 5. Data structures used on purpose
 
 | Where | Structure | Why |
@@ -102,3 +124,27 @@ CREATE INDEX events_kind ON events(kind, ts);
 | Tool registry | `dict[name, (ToolSpec, handler, fiber)]` | O(1) lookup; the owning fiber removes it |
 | Event log | Append-only table + projections | Single source of truth, audit for free |
 | Prompt sections | Ordered list keyed by (order, id) | Deterministic prompts; removal via effect |
+
+## 6. Local model files (download on first use)
+
+| Model | Approx. size | Needed for |
+|-------|-------------|------------|
+| Silero VAD (onnx) | ~2 MB | Voice input. Small enough to **bundle** |
+| faster-whisper `small` (int8) | ~250–500 MB | Local STT (default) |
+| Kokoro (onnx) + voices | ~100–350 MB (depending on precision) | Local TTS (default) |
+| espeak-ng | few MB | G2P fallback, bundled as an executable (03 §4.7) |
+
+*The sizes are indicative; Spike C records the real numbers.*
+
+- Models are downloaded **on first use** from their official hosts (Hugging Face / GitHub
+  releases) into the OS cache dir (`platformdirs.user_cache_dir`), **pinned by exact revision and
+  SHA-256**. The hashes live in a manifest in the repo, so a changed upstream file is detected and
+  refused.
+- Progress is shown on the avatar ("Downloading voice… 42%") and in Configure (`model.download`
+  messages). Downloads resume after interruption and are retried with backoff.
+- **Offline first run:** if the download fails, voice input/output plugins go `pending: model not
+  downloaded` and the app remains usable by typing. A "download models" button and a manual-import
+  option (pick a file) are provided.
+- The Advanced panel shows disk usage per model and offers *Remove*.
+- Installers stay small (no models inside), which also keeps GitHub Release assets under their size
+  limits.

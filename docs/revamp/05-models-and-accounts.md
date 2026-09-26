@@ -11,7 +11,7 @@ class ChatModel(Protocol):
     capabilities: ModelCaps          # tools, vision, streaming, max_context, computer_use
     def stream(self, messages: list[Message], tools: list[ToolSpec],
                opts: GenOptions) -> AsyncIterator[ModelEvent]: ...
-    # ModelEvent = TextDelta | ToolCallDelta | ToolCall | Usage | Stop(reason)
+    # ModelEvent = TextDelta | ReasoningDelta | ToolCallDelta | ToolCall | Usage | Stop(reason)
 
 class AgentBackend(Protocol):
     """An external agent runs the loop (e.g. Claude Code). We give it our tools and a permission
@@ -37,6 +37,26 @@ tool_result). Each adapter converts to and from its vendor format at its own bou
 Three adapters cover nearly every provider. OpenRouter alone gives access to hundreds of models. Each
 adapter is ~150–250 lines and passes the shared contract tests (streaming text, one tool call,
 parallel tool calls, image input, cancellation mid-stream, error mapping).
+
+**Capability differences are handled explicitly, not assumed:**
+
+- **No tool calling** (some local models): the agent runs chat-only for that model. Tools are not
+  offered, and the Features panel shows "Tools unavailable with <model>". We don't emulate tool
+  calling with prompt parsing in v1.
+- **No vision:** screenshots and images are routed to the `vision` role model if one is configured;
+  otherwise the tool result says "no vision model configured".
+- **Model capabilities** come from the adapter (known model table + provider metadata, e.g.
+  OpenRouter's `/models` endpoint), and the user can override them in config for unknown local
+  models.
+- **Prompt caching:** the Anthropic adapter sets cache breakpoints after the tools and after the
+  stable system sections (persona, rules, skills index). OpenAI-compatible providers cache prefixes
+  automatically where supported. That's why prompt assembly (07 §4) puts stable sections first and
+  volatile ones (time, active window) last.
+- **Context budget:** each turn is assembled within `context_budget = model.max_context -
+  max_output - safety margin`. History is **windowed from the newest turn backwards**. Large old tool
+  results are replaced by a one-line stub ("[tool result omitted: 14 KB]"). If that still doesn't
+  fit, the oldest turns are dropped. Summarisation of dropped turns is post-v1. Token counts use the
+  provider's counter when available, otherwise a tokenizer estimate plus a 10% margin.
 
 **Model roles** in config: `main` (conversation + tools) and optional `vision` (screenshots, if `main`
 lacks vision). Keep it to these two; add roles only when a real need appears.
@@ -68,6 +88,12 @@ banned.
      forwards a token and never shows a "log in with Claude" screen.
    - Our tools are exposed to it as an in-process MCP server, and our permission engine is plugged in
      through the SDK's tool-permission callback. Our permission rules still decide.
+   - **Claude Code's own built-in tools (Bash, Read, Edit, Write, WebFetch, …) must be disabled**
+     (an allow-list containing only our MCP tools). Otherwise it could act on the machine outside our
+     permission engine. A contract test asserts that the bridge offers no tool we didn't register.
+   - It has its own session and memory. We pass our persona and history in explicitly, and we don't
+     rely on Claude Code's project files (`CLAUDE.md` etc.) because the working directory is an empty
+     app-owned folder.
    - The Configure panel shows its status (CLI found / logged in / version) and a short notice that
      subscription use by programmatic clients is governed by Anthropic's current terms.
    - **Before any public release or demo, re-check Anthropic's terms.** If they don't allow it, the
@@ -96,7 +122,23 @@ your machine. The future extension pairs with the desktop core using a one-time 
 - Environment variables (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, …) are honoured as a fallback for
   developers and CI.
 
-## 6. Cost and safety guards
+## 6. Privacy: what leaves the machine
+
+The app has no server and no telemetry. What leaves the machine depends only on the providers you
+choose:
+
+| Data | Goes to | When |
+|------|---------|------|
+| Your speech audio | Cloud STT provider | Only if a cloud STT is selected (default is local) |
+| Transcript, persona, history, tool results, **screenshots** | The LLM provider | Every turn |
+| Assistant text | Cloud TTS provider | Only if a cloud TTS is selected (default is local) |
+| MCP tool arguments | That MCP server | When the tool is called |
+
+The Configure panel shows this table *live* for the current config ("Your screenshots are sent to
+OpenRouter → Anthropic"). The first time a screenshot would go to a cloud model, the user is asked
+once for consent. Logs redact secrets and anything matching common key patterns.
+
+## 7. Cost and safety guards
 
 - Per-turn caps: max tool iterations (default 8), max output tokens, max wall time. All configurable.
 - Token usage is recorded per turn in the event log and shown in Conversations. An optional

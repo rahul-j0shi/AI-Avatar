@@ -24,10 +24,32 @@ changes.
 **Renderer:** three.js + `@pixiv/three-vrm`, because it is the reference VRM runtime and actively
 maintained. Babylon.js has only community VRM loaders. (Resume note: this replaces "Babylon.js".)
 
-**Default avatar:** we create one in VRoid Studio (you own the output), export VRM 1.0, and add
-custom mouth expressions in Blender (`PP`, `FF`, `TH`, `DD`, `kk`, `CH`, `SS`, `nn`, `RR`) so the
-default avatar can show all 15 visemes (§4). It is committed with Git LFS, only once, not twice like
-today.
+**Default avatar:** we create one in VRoid Studio, export VRM 1.0, and add custom mouth expressions
+in Blender (`PP`, `FF`, `TH`, `DD`, `kk`, `CH`, `SS`, `nn`, `RR`) so the default avatar can show all 15
+visemes (§4). It is committed with Git LFS, only once, not twice like today.
+
+- **Effort warning:** sculpting 9 extra mouth shape keys is real art work (think 1–3 days for a
+  beginner, including learning the Blender VRM add-on). **Fallback:** ship v1 with the `vrm-basic`
+  retarget (5 vowels + closed), which is already clearly better than volume-only lip sync, and add the
+  extended shapes when there's time. The engine is identical either way; only the retarget file
+  changes.
+- **Licences:** check VRoid Studio's terms for the preset hair and clothing parts used, and avoid
+  third-party BOOTH items unless their licence allows redistribution in an open-source repo. Record
+  the result in `assets/LICENSES.md`.
+- **Respect VRM licence metadata:** imported `.vrm` files carry usage permissions (avatar
+  permission, commercial use, modification). The import dialog shows them, and the app warns if a
+  model forbids modification before the looks editor changes it.
+
+**Animation assets (idle and gestures)** are needed and must be licence-clean:
+
+| Source | Use | Licence note |
+|--------|-----|--------------|
+| Procedural (code) | Breathing, sway, blink, saccades, head nod/tilt | Ours. Covers most of the "alive" feeling with zero assets |
+| pixiv's free VRMA motion samples | Wave, greeting and similar clips | Check the distribution terms before committing them to the repo; otherwise download at first run |
+| Mixamo → retargeted to VRMA | More gestures | Allowed inside apps, but **redistributing the raw animation files is not**. Keep them out of the public repo; bake them into our own edited clips or skip them |
+| Own clips recorded in Blender or with webcam mocap | Signature gestures | Ours |
+
+v1 needs only **3 gestures** (wave, nod, shrug) + procedural idle. That is enough for the demo.
 
 ## 2. Looks as code: `avatar.json`
 
@@ -61,6 +83,10 @@ just writes this same file, so nothing is thrown away.
 
 - Body animations use **VRMA** (VRM Animation) clips, which three-vrm can load and retarget.
 - The live preview renders in the Configure window using the same `packages/avatar` renderer.
+- **Apply path:** saving `avatar.json` → the core validates it → `config.changed` → the avatar window
+  applies it. Changes to materials, meshes, face and idle apply in place. A change of `model`
+  reloads the VRM (cross-fade, ~1 s). Assets load through the core's `/assets` route (01 §4).
+- An invalid file keeps the old look and shows the error in the editor (same rule as all config).
 - **Later ("inventory"):** items become small packages (`item.json` + assets) that patch
   `materials`/`meshes` or attach a mesh to a bone. "Publish" means exporting an item package. This
   stays out of scope for the desktop v1.
@@ -99,6 +125,14 @@ class PerformanceSegment:
     word_spans: tuple[tuple[int, int, int], ...]  # (t_ms, char_start, char_end) to highlight spoken words
 ```
 
+**Delivery rule (v1): one segment = one fully synthesised sentence.** The core sends the sentence's
+binary audio frames first, then `performance.segment` with the complete viseme track. The renderer
+schedules a segment only when both have arrived. Sentence-level synthesis keeps alignment simple and
+exact. Streaming *within* a sentence would save roughly 100–300 ms on the first sentence only, and the
+short-first-sentence rule in 04 §2 already recovers most of that. Sub-sentence streaming is a post-v1
+optimisation. The data model allows it later (a segment can be split into chunks with the same id),
+but v1 does not build it.
+
 **Why keyframes plus an envelope and not dense per-frame weights:** keyframes are small on the wire
 (a sentence is about 40 keys), easy to test (golden files) and independent of frame rate. The renderer
 turns them into smooth curves. The envelope carries the real loudness, so the jaw moves naturally.
@@ -115,10 +149,11 @@ Each TTS adapter declares what alignment it can provide. The engine uses the bes
 | A | **Phoneme timings** from the TTS itself | Kokoro (phonemes from its G2P + predicted durations / token timestamps: *verify granularity in the Phase 0 spike*), Azure TTS viseme events | Best |
 | B | **Word or character timings** + our G2P | ElevenLabs `with-timestamps` (character alignment), Cartesia (word timestamps) | Good |
 | C | **Text only**, then G2P + forced alignment against the audio | OpenAI TTS, Coqui | Good; costs CPU |
-| D | **Audio only**: spectral vowel estimation in real time | Anything, including raw audio | Fallback: vowels only, no closures |
+| D | **Audio only**: spectral vowel estimation (formant/MFCC-based), computed **in the core** over the finished sentence audio, so it uses the same data model | Anything, including raw audio | Fallback: vowels only, no closures |
 
 Tier C uses a small aligner (e.g. a CTC phoneme model through onnxruntime) and only runs if Tier A/B
-are not available. Tier C is Phase 3b. Tiers A, B and D are enough for v1.
+are not available. Tiers A, B and D are enough for v1. Tier C is post-v1, **unless** Spike B shows the
+chosen default TTS gives no usable timing, in which case Tier C moves into Phase 3b.
 
 ### 4.2 Pipeline
 
@@ -199,14 +234,31 @@ English spelling rules guess the vowels of words like "kya" and "haal" incorrect
    chosen by a small language-ID step. Then use Hindi G2P for those words.
 3. Pick TTS voices that handle code-switching (test Kokoro Hindi voices, ElevenLabs multilingual,
    Azure `hi-IN`).
+4. **The text the LLM writes must match what the TTS voice can read.** A Hindi voice that expects
+   Devanagari reads Romanised Hinglish badly, and an English voice mangles Devanagari. So the persona
+   `language` setting drives three things together: the prompt instruction (which script to write
+   in), the TTS voice, and the G2P path. The bubble can still show Romanised text while the TTS gets a
+   transliterated copy. This is one small `script` normalisation step in the segmenter.
 
 **Needs your input:** is Hinglish a v1 requirement (open question 4)?
 
 ### 4.7 Licences to watch
 
-espeak-ng and the `phonemizer` package are **GPL-3.0**. Calling espeak-ng as a separate process keeps
-the app's own licence clean. We keep espeak-ng as a fallback, not a linked library. misaki and Kokoro
-are Apache-2.0.
+The repo is **Apache-2.0**. espeak-ng and the `phonemizer` package are **GPL-3.0** (`phonemizer`
+loads the espeak library in-process, so we don't use it). Calling the `espeak-ng` executable as a
+separate process is "mere aggregation" and keeps the app Apache-2.0. The installer must still ship
+espeak-ng's licence text and say where its source is. misaki and Kokoro are Apache-2.0. Note that
+misaki falls back to espeak for languages it doesn't cover natively, and **Hindi is one of them**, so
+the Hindi path always uses the subprocess. A full licence review of every bundled dependency is a
+Phase 7 task (`THIRD_PARTY_NOTICES.md`, generated).
+
+### 4.8 Kokoro packaging choice
+
+The reference `kokoro` package depends on **PyTorch**, which adds gigabytes to a PyInstaller bundle.
+`kokoro-onnx` runs on onnxruntime and is much smaller. Spike B must confirm which of the two exposes
+the timing information we need (phoneme durations or token timestamps). Preferred order:
+`kokoro-onnx` with durations → `kokoro-onnx` + forced alignment (Tier C) → `kokoro` (torch) only if
+nothing else gives good timing.
 
 ## 5. Renderer playback (`packages/avatar`)
 
@@ -220,6 +272,8 @@ class PerformancePlayer {
 ```
 
 - Segments are queued back-to-back: `segment.startAt = max(ctx.currentTime + 0.05, prevEnd)`.
+- **Bubble-only mode (no audio):** cues still play. They are scheduled against the bubble's text reveal
+  (an estimated 15 characters per second), so expressions and gestures still happen without voice.
 - The viseme cursor per frame is a pointer walk over the sorted key array: O(1) amortised, no search.
 - `FaceFrame` = weights per expression name. `AvatarRenderer` applies them through
   `vrm.expressionManager.setValue()` and then `vrm.update(dt)`.

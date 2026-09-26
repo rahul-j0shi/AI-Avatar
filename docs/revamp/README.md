@@ -31,6 +31,7 @@ later drive a browser extension; that is planned for, not built.
 | 08 | [Configuration & data](08-config-and-data.md) | Config files, feature flags, hot reload, storage, data structures |
 | 09 | [Roadmap](09-roadmap.md) | Phases 0–7 with tasks and exit criteria, testing strategy |
 | 10 | [Next: browser extension](10-next-browser-extension.md) | How the extension plugs into the same core later |
+| 11 | [Review, traceability & risks](11-review-and-traceability.md) | Wishlist → design → phase map, the gap log from the plan review, the risk register, the over-engineering check |
 
 ## Design principles
 
