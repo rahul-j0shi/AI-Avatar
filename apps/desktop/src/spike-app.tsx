@@ -19,20 +19,37 @@ interface SpikeReport {
 
 declare global {
   interface Window {
+    svaraSpike?: {
+      kind: "electron";
+      recordEvent: (name: string, details: unknown) => Promise<void>;
+      setInputRegions: (regions: InputRegion[]) => Promise<string>;
+    };
     __TAURI_INTERNALS__?: unknown;
   }
 }
 
 const isTauri = () => window.__TAURI_INTERNALS__ !== undefined;
+const shellKind = () => (isTauri() ? "tauri" : (window.svaraSpike?.kind ?? "browser"));
 
-const invokeIfTauri = async <T,>(
+const invokeShell = async <T,>(
   command: string,
   args?: Record<string, unknown>,
 ): Promise<T | null> => {
-  if (!isTauri()) {
+  if (isTauri()) {
+    return invoke<T>(command, args);
+  }
+  const bridge = window.svaraSpike;
+  if (!bridge) {
     return null;
   }
-  return invoke<T>(command, args);
+  if (command === "set_input_regions") {
+    return bridge.setInputRegions((args?.regions as InputRegion[]) ?? []) as Promise<T>;
+  }
+  if (command === "record_event") {
+    await bridge.recordEvent(String(args?.name), args?.details);
+    return null;
+  }
+  throw new Error(`Unsupported Electron spike command: ${command}`);
 };
 
 const collectInputRegions = (): InputRegion[] =>
@@ -68,7 +85,7 @@ export function SpikeApp() {
 
   const updateInputRegions = useCallback(async () => {
     try {
-      const result = await invokeIfTauri<string>("set_input_regions", {
+      const result = await invokeShell<string>("set_input_regions", {
         regions: collectInputRegions(),
       });
       if (result) {
@@ -150,7 +167,7 @@ export function SpikeApp() {
     setMode(measurementMode);
     setRunning(measurementMode);
     const result = await renderer.measure(10_000);
-    await invokeIfTauri("record_event", {
+    await invokeShell("record_event", {
       details: result,
       name: `${measurementMode}-render`,
     });
@@ -176,7 +193,7 @@ export function SpikeApp() {
       oscillator.start();
       oscillator.stop(context.currentTime + 0.82);
       oscillator.addEventListener("ended", () => void context.close());
-      await invokeIfTauri("record_event", {
+      await invokeShell("record_event", {
         details: { audioContextState: context.state, sampleRate: context.sampleRate },
         name: "web-audio",
       });
@@ -209,7 +226,7 @@ export function SpikeApp() {
   };
 
   return (
-    <main>
+    <main className={`shell-${shellKind()}`}>
       <section
         aria-label="Draggable avatar"
         className="avatar-hit-region"

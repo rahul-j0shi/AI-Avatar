@@ -7,6 +7,7 @@
   "scripts": {
     "build": "tsc --noEmit && vite build",
     "dev": "vite --host 0.0.0.0 --port 1420 --strictPort",
+    "spike:electron": "bash spikes/electron/run.sh",
     "spike:tauri": "bash spikes/tauri/scripts/run.sh",
     "spike:tauri:build-image": "docker build -f spikes/tauri/Dockerfile -t svara-tauri-spike:ubuntu24 ../..",
     "spike:tauri:model": "bash spikes/tauri/scripts/fetch-test-model.sh"
@@ -22,6 +23,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.1",
+    "electron": "44.4.5",
     "vite": "8.3.1"
   }
 }
