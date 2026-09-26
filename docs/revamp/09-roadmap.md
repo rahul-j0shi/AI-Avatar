@@ -90,7 +90,7 @@ Tasks
       tests with recorded cassettes.
 - [ ] `agent`: loop without tools; prompt assembly with sections; persona plugin (`persona.md`).
 - [ ] `protocol`: WS server with token auth, messages, TS type generation + drift check.
-- [ ] `avatar-core chat` dev CLI that connects over the protocol (useful for tests and debugging).
+- [ ] `svara chat` dev CLI that connects over the protocol (useful for tests and debugging).
 - [ ] **Fake providers** (`fake` LLM/STT/TTS adapters with scripted, timed output) and a
       `--demo` flag. CI runs the full pipeline with them. Anyone can run the app with no API keys to
       see it work, which matters for recruiters and reviewers.
@@ -99,7 +99,7 @@ Tasks
 - [ ] Plugin status reporting (`plugin.status`) and failure isolation (01 §3).
 - [ ] Context budget + history windowing (05 §2); typed provider errors + retry policy (04 §4a).
 
-**Exit:** `uv run avatar-core` + the CLI streams answers; editing `config.json` to switch
+**Exit:** `uv run svara` + the CLI streams answers; editing `config.json` to switch
 OpenRouter ↔ Anthropic ↔ Ollama takes effect **without restart**; the kernel tests prove clean unmount.
 
 ---

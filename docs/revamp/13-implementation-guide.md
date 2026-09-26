@@ -94,18 +94,18 @@ it), `mss`/`pynput`/`pyautogui` (don't work on Wayland), `langgraph`, `torch`.
 ## 3. Repository bootstrap (what T0.1–T0.4 produce)
 
 ```
-ai-avatar/
+svara/
 ├── core/
-│   ├── pyproject.toml            # name "avatar-core", requires-python ">=3.14,<3.15"
-│   ├── src/avatar_core/…         # layout from 01 §6
+│   ├── pyproject.toml            # name "svara-core", requires-python ">=3.14,<3.15"
+│   ├── src/svara_core/…         # layout from 01 §6
 │   └── tests/{unit,contract,integration,golden}/
 ├── apps/desktop/
 │   ├── package.json              # the web UI
 │   ├── src/                      # React (02 §7)
 │   └── src-tauri/ | electron/    # decided by T0.7
 ├── apps/extension/README.md      # the "next" pointer (10)
-├── packages/avatar/              # renderer (no React/Tauri imports; enforced by a lint rule)
-├── packages/protocol/            # generated TS types (committed; drift-checked)
+├── packages/avatar/              # @svara/avatar; no React/Tauri imports (lint-enforced)
+├── packages/protocol/            # @svara/protocol; generated types (committed; drift-checked)
 ├── assets/                       # default VRM, VRMA, LICENSES.md (Git LFS: *.vrm *.vrma)
 ├── docs/revamp/ · docs/adr/
 ├── pnpm-workspace.yaml · .gitattributes · .editorconfig
@@ -142,7 +142,7 @@ running the core test suite in an `ubuntu:26.04` container. No GPU and no GUI te
   `except Exception` without re-raise or logging with context.
 - Logging: stdlib `logging` with a JSON formatter; the redaction filter always installed (F34).
 - Every plugin lives in one module with a `plugin = Plugin(name=…, inject=…, apply=…)`, registered in
-  `avatar_core/plugins.py`.
+  `svara_core/plugins.py`.
 
 **TypeScript**
 - `strict: true`; no `any` except at the WS boundary, where it is validated against the generated
@@ -365,7 +365,7 @@ in parallel.
 | T1.10 | `openai_compat` adapter + presets (openai, openrouter, ollama, lmstudio, custom) | F19 (AC1) | T1.8, T1.4 | Contract suite green |
 | T1.11 | `claude_subscription` adapter, text only (05 §3.2) | F19 (AC2 minus tools) | T1.8, T0.11 | No built-ins, no `~/.claude` load, streaming |
 | T1.12 | Agent turn + loop (no tools yet), turn policy, conversations + context strategy per adapter, typed errors + retry policy | F20, F21 (AC1–3), 04 §4a | T1.3, T1.7, T1.9–T1.11 | ACs pass with fake and recorded providers |
-| T1.13 | `avatar-core chat` dev CLI; `--demo` text mode | F37 (AC1–2 text) | T1.6, T1.12 | A scripted demo turn passes in CI |
+| T1.13 | `svara chat` dev CLI; `--demo` text mode | F37 (AC1–2 text) | T1.6, T1.12 | A scripted demo turn passes in CI |
 
 **Phase 1 exit (09):** the CLI chats; switching the provider in the file applies live; the kernel
 tests pass.

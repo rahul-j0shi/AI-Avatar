@@ -27,14 +27,14 @@ explicit decision below.
 |------|-------------------------------------|----------------------|
 | **Position + always-on-top + drag** | The **avatar window runs through XWayland** (`GDK_BACKEND=x11` for the avatar process). Mutter honours EWMH hints for X11 clients (`_NET_WM_STATE_ABOVE`, move requests, `_NET_WM_MOVERESIZE` drag) | That Mutter 46 and 50 keep an XWayland window on top and at our position, and that drag works |
 | **Click-through on transparent areas** | Set a GTK **input shape region** (`gtk_widget_input_shape_combine_region`, which becomes an XShape input region) covering only the avatar silhouette box, the bubble and popovers. Clicks outside it pass through natively. **No cursor polling**, which wouldn't work anyway: under XWayland the global cursor position is stale while the pointer is over Wayland-native windows | That the input region updates cleanly when the bubble appears or disappears |
-| **Global hotkeys** (Stop, push-to-talk) | Portable path for 24.04 *and* 26.04: register **GNOME custom keyboard shortcuts** (gsettings `custom-keybindings`) that run `ai-avatar --action stop` / `--action talk`. The single-instance plugin forwards the action to the running app. Onboarding adds them with consent and shows them in Configure. The GlobalShortcuts portal (26.04) is a later improvement | End-to-end latency of the hotkey → action (< 200 ms) |
+| **Global hotkeys** (Stop, push-to-talk) | Portable path for 24.04 *and* 26.04: register **GNOME custom keyboard shortcuts** (gsettings `custom-keybindings`) that run `svara --action stop` / `--action talk`. The single-instance plugin forwards the action to the running app. Onboarding adds them with consent and shows them in Configure. The GlobalShortcuts portal (26.04) is a later improvement | End-to-end latency of the hotkey → action (< 200 ms) |
 | **Screenshots of other apps** | **xdg-desktop-portal Screenshot** (`interactive=false`) through D-Bus from the core. GNOME asks the user once and remembers the grant in its permission store. An XWayland app using `mss` would only see X11 windows | Whether GNOME 46 and 50 remember the grant, and the capture latency |
 | **Input control (computer use)** | **xdg-desktop-portal RemoteDesktop** (with ScreenCast for the screen), with `persist_mode` so the user consents once per grant. No `ydotool`/uinput (that needs root-level device access) | The consent flow and restore-token reuse on both releases |
 | **Window list / active app / focus** | **AT-SPI** accessibility bus, spoken over D-Bus with `dbus-fast` (no PyGObject: it has no wheels and is awkward to bundle), which works on Wayland for GTK/Qt/Chromium/Electron apps. "Focus app X" = re-launch its `.desktop` entry (`gio launch`); GNOME brings a running single-instance app to the front. Arbitrary window raising is not possible on Wayland and is documented as a limitation | Coverage of common apps (Firefox, Chrome, VS Code, Files, Terminal) |
 | **Clipboard** | Wayland only lets the **focused** client read the clipboard. `clipboard.read` works right after the user interacted with the avatar (it has focus). Otherwise the tool returns "copy the text, then click me" instead of failing silently. `clipboard.write` works | Read/write from the XWayland avatar window |
 | **Fractional scaling** | XWayland windows can look blurry at 125%/150% scaling. Supported, tested setups: 100% and 200%. Fractional is best-effort, and a known limitation in the README | Visual check at 100/150/200% |
 | **Tray icon** | Ubuntu enables the AppIndicator extension by default, so the Tauri tray (libayatana-appindicator) shows up | — |
-| **Launch at login** | `~/.config/autostart/ai-avatar.desktop` (`tauri-plugin-autostart`) | — |
+| **Launch at login** | `~/.config/autostart/svara.desktop` (`tauri-plugin-autostart`) | — |
 | **Keeping the avatar out of screen shares** | Not possible on GNOME Wayland (there is no exclude-from-capture API). Our *own* screenshot tool hides the avatar for the capture frame instead. The README states that the avatar is visible in meetings, with a quick "Hide for 30 min" menu item | — |
 
 ### 1.3 Shell choice: Tauri 2, with Electron decided by measurement
@@ -78,8 +78,8 @@ Prefer **Tauri** if it meets all of these, and pick **Electron** otherwise. Eith
 - **Echo cancellation for barge-in:** PipeWire's `libpipewire-module-echo-cancel` (the WebRTC
   engine) in **monitor mode** uses whatever the system is playing as the echo reference, so it
   cancels our webview's playback without re-routing audio. Onboarding offers to install a drop-in
-  config (`~/.config/pipewire/pipewire.conf.d/60-ai-avatar-echo-cancel.conf`, which creates an
-  `ai-avatar-ec-source`) and restarts the user's PipeWire service with consent. The core captures from
+  config (`~/.config/pipewire/pipewire.conf.d/60-svara-echo-cancel.conf`, which creates an
+  `svara-ec-source`) and restarts the user's PipeWire service with consent. The core captures from
   that source when present. **Fallback:** barge-in only with headphones, or "duck and gate" (a
   higher VAD threshold while speaking).
 - **Playback** stays in the webview (WebAudio), because it must share the renderer's clock (03 §5).

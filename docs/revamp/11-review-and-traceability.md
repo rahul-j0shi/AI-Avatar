@@ -94,7 +94,7 @@ remain open. Re-run this review at the end of every phase.
 | G41 | Ubuntu 26.04 has **no Xorg session**, so "run under X11" is impossible. The design must work in the default Wayland session | High | 02 §1.1–1.2 (XWayland for the avatar window only) |
 | G42 | Cursor-poll click-through fails under XWayland (the cursor position is stale over Wayland windows) | High | 02 §1.2: input shape region, no polling |
 | G43 | `mss`/`pynput` can't see or control Wayland apps; window listing and focusing other apps are forbidden | High | 02 §1.2 and 06 §4: Screenshot/RemoteDesktop portals, AT-SPI, `gio launch` |
-| G44 | Global hotkeys: an XWayland app can't grab keys; the GlobalShortcuts portal is missing on 24.04 (GNOME 46) | High | 02 §1.2: GNOME custom shortcuts → `ai-avatar --action` CLI |
+| G44 | Global hotkeys: an XWayland app can't grab keys; the GlobalShortcuts portal is missing on 24.04 (GNOME 46) | High | 02 §1.2: GNOME custom shortcuts → `svara --action` CLI |
 | G45 | WebKitGTK risk (CPU painting under XWayland, NVIDIA blank windows) is much bigger when Linux is the *only* platform | High | 02 §1.3: Tauri vs Electron decided by measurement; NVIDIA env workaround |
 | G46 | Clipboard reads need focus on Wayland; the core has no window | Medium | 06 §4: clipboard is a surface-provided tool |
 | G47 | Echo cancellation for barge-in on Linux | Medium | 02 §1.4: PipeWire echo-cancel in monitor mode |

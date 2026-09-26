@@ -113,9 +113,9 @@ optimisations:
 | Login | Done once by you in a terminal, with the official installer and `claude` login. The adapter checks readiness with a minimal test query when it mounts. Failures → plugin `pending: Claude Code not installed` or `pending: Claude Code not logged in`, each with the exact instruction. Spike E verifies that `setting_sources=[]` doesn't affect reading the login |
 | Environment | The child process is started **without** `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN`, because a key in the environment would silently switch it to API billing |
 | Built-in tools | **None.** `tools=[]`, plus `disallowed_tools` listing every Claude Code built-in (Bash, Read, Write, Edit, Glob, Grep, WebFetch, WebSearch, …) as a second guard. A contract test asserts that the session's tool list is exactly our tools |
-| Settings isolation | `setting_sources=[]`, so **no** `~/.claude` skills, memory (`CLAUDE.md`), hooks, plugins or MCP servers load. `cwd` = an empty app-owned directory (`$XDG_STATE_HOME/ai-avatar/claude-cwd`) |
+| Settings isolation | `setting_sources=[]`, so **no** `~/.claude` skills, memory (`CLAUDE.md`), hooks, plugins or MCP servers load. `cwd` = an empty app-owned directory (`$XDG_STATE_HOME/svara/claude-cwd`) |
 | System prompt | `system_prompt` = our assembled prompt string (persona + rules + skills index, 07 §4). It replaces Claude Code's own default prompt |
-| Our tools | Exposed with `create_sdk_mcp_server(name="avatar", tools=[…])`, one `@tool` per registered tool, regenerated when the tool registry changes |
+| Our tools | Exposed with `create_sdk_mcp_server(name="svara", tools=[…])`, one `@tool` per registered tool, regenerated when the tool registry changes |
 | Permissions | **Enforced inside each tool handler** by our permission engine, which is authoritative. `can_use_tool` is also wired to the same engine, but it is not relied on, because the SDK only calls it when its own permission flow falls through to a prompt |
 | Streaming | `include_partial_messages=True`. Text deltas feed the segmenter exactly like other providers |
 | Turn limit | `max_turns` = `agent.maxSteps` |
@@ -140,7 +140,7 @@ above rule out offering claude.ai login in the extension anyway.
 ## 5. Secrets
 
 - API keys are stored in the **OS keychain** (`keyring` → Secret Service, i.e. GNOME Keyring on
-  Ubuntu, unlocked at login) under the service name `ai-avatar`. Config files hold only a reference:
+  Ubuntu, unlocked at login) under the service name `svara`. Config files hold only a reference:
   `"apiKey": {"secret": "openrouter"}`.
 - Keys never go to the webview after being saved. The panel shows `••••last4` and a *Test* button that
   the core runs.

@@ -10,7 +10,7 @@
 
 The mic plugin reads **16 kHz mono s16le, 20 ms frames**. The stream is open only while listening (and
 while speaking, if barge-in is on). It keeps a **300 ms pre-roll ring buffer**, so the first syllable
-before VAD triggers isn't lost. It prefers `ai-avatar-ec-source` when present, otherwise the default
+before VAD triggers isn't lost. It prefers `svara-ec-source` when present, otherwise the default
 source. The source is selectable in *Configure → Voice*.
 
 ## 2. Turn orchestration

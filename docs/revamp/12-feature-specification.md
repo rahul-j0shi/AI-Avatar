@@ -130,10 +130,10 @@ without a restart.
 **Purpose.** Start, run and stop reliably, as one instance, with a recoverable core.
 
 **Behaviour.**
-- Launch (from the app grid, a terminal `ai-avatar`, or autostart) → the shell starts → the core
+- Launch (from the app grid, a terminal `svara`, or autostart) → the shell starts → the core
   starts (01 §3a) → the avatar appears in the `booting` state → `idle` once the core says hello.
 - A second launch does not start a second app. It forwards its arguments to the running instance:
-  - `ai-avatar` with no args shows the avatar if hidden.
+  - `svara` with no args shows the avatar if hidden.
   - `--action talk` behaves like double-click.
   - `--action stop` behaves like F27.
   - `--action show` unhides.
@@ -164,9 +164,9 @@ shutdown completes ≤ 5 s.
 
 **AC.**
 1. Launching twice leaves one process tree, and the second launch shows the existing avatar.
-2. `ai-avatar --action talk` starts listening in the running instance.
+2. `svara --action talk` starts listening in the running instance.
 3. Killing the core process → the avatar recovers to `idle` automatically.
-4. `kill -9` on the shell → no `avatar_core` process remains after 2 s.
+4. `kill -9` on the shell → no `svara_core` process remains after 2 s.
 5. Autostart on → the avatar appears after the next login. Off → the file is removed.
 
 ---
@@ -455,7 +455,7 @@ use export for backups); remote configuration.
   `--action talk`. **Stop:** VAD end-of-speech, a second double-click, Esc (when focused), *Stop*,
   or no speech for 8 s.
 - **Capture:** a `pw-record` subprocess on the selected PipeWire source, 16 kHz mono s16le, 20 ms
-  frames. It prefers `ai-avatar-ec-source` if present.
+  frames. It prefers `svara-ec-source` if present.
 - **Pre-roll:** the last 300 ms before speech onset is kept (ring buffer), so the first syllable
   isn't lost.
 - **VAD:** Silero (ONNX model via onnxruntime; no PyTorch). Speech starts after ≥ 200 ms of voice probability above the threshold. Speech ends
@@ -1090,7 +1090,7 @@ again; drag-and-drop gestures; games; OCR-based targeting without a vision model
 
 **Purpose.** Instantly stop whatever the assistant is doing.
 
-**Behaviour.** The Stop shortcut (a GNOME custom shortcut → `ai-avatar --action stop`), menu *Stop*,
+**Behaviour.** The Stop shortcut (a GNOME custom shortcut → `svara --action stop`), menu *Stop*,
 or tray: cancels the turn's TaskGroup, stops audio, rejects pending approvals, and ends a computer-use
 grant. The state goes to `idle`, and the bubble says "Stopped."
 
@@ -1185,7 +1185,7 @@ permission effects (ignored in v1); skill versioning.
 
 **Purpose.** Everything is configurable, live, from files or the panel.
 
-**Behaviour.** The files and locations are in 08 §1 (`$XDG_CONFIG_HOME/ai-avatar/`). JSONC with
+**Behaviour.** The files and locations are in 08 §1 (`$XDG_CONFIG_HOME/svara/`). JSONC with
 `$schema`, validated by pydantic-generated JSON Schemas. A change (file watcher or panel) is
 validated, then the plugin tree is diffed, and `mount`/`unmount`/`reconfigure` run only for changed
 entries (01 §2.3).
@@ -1215,7 +1215,7 @@ YAML/TOML.
 
 **Purpose.** API keys never sit in plain files.
 
-**Behaviour.** Keys are stored in the Secret Service (GNOME Keyring) under the service `ai-avatar`,
+**Behaviour.** Keys are stored in the Secret Service (GNOME Keyring) under the service `svara`,
 and config holds `{"secret": "<name>"}` references. The panel is write-only and shows `••••last4`.
 Credential files (Google service-account JSON) are stored as keychain blobs. Environment variables
 (`ANTHROPIC_API_KEY`, …) work as a fallback, **except** for `claude_subscription`, whose child process
@@ -1239,7 +1239,7 @@ provider goes `pending: keyring unavailable`); secret sharing; secret rotation r
 
 **Purpose.** A durable, auditable record of conversations and decisions.
 
-**Behaviour.** SQLite (WAL) at `$XDG_DATA_HOME/ai-avatar/events.sqlite`, append-only events (08 §4);
+**Behaviour.** SQLite (WAL) at `$XDG_DATA_HOME/svara/events.sqlite`, append-only events (08 §4);
 one async writer; `user_version` migrations.
 
 **Retention:** keep forever (default) / 30 / 90 days, applied daily. *Clear history* deletes all
@@ -1268,7 +1268,7 @@ backup; importing conversations; storing audio.
 **Behaviour.**
 - Silero VAD is bundled.
 - faster-whisper `small` (int8) and the Kokoro timestamped ONNX export (fp16) + voices file download **on first use** into
-  `$XDG_CACHE_HOME/ai-avatar/models/`.
+  `$XDG_CACHE_HOME/svara/models/`.
 - Pinned by revision + SHA-256 (a manifest in the repo); resumable, with retry and progress on the
   avatar and in Advanced; refuses on a hash mismatch.
 - Advanced shows disk use per model and offers *Remove* and *Import from file*.
@@ -1346,7 +1346,7 @@ opening a terminal (except the one-time Claude Code login, if they choose the su
 **Purpose.** When something breaks, the answer is one click away.
 
 **Behaviour.**
-- Rotating logs (core + shell), 5 files × 5 MB, in `$XDG_STATE_HOME/ai-avatar/logs/`.
+- Rotating logs (core + shell), 5 files × 5 MB, in `$XDG_STATE_HOME/svara/logs/`.
 - A **diagnostics bundle** (zip): logs, config without secrets, plugin statuses, versions, OS/GPU
   info.
 - A **latency overlay** (flag): per-turn stage timings (VAD end → STT → first token → first sentence
@@ -1367,7 +1367,7 @@ opening a terminal (except the one-time Claude Code login, if they choose the su
 **Purpose.** Run the full app with no keys, no network and no mic, for CI, reviewers and
 recruiters.
 
-**Behaviour.** `ai-avatar --demo` mounts the `fake` STT/LLM/TTS adapters:
+**Behaviour.** `svara --demo` mounts the `fake` STT/LLM/TTS adapters:
 - scripted replies with tags and tool calls;
 - TTS that emits a sine-shaped voice-like signal with Tier A timings;
 - read-only tools against a bundled sample folder.

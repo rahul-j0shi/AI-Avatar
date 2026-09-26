@@ -48,7 +48,7 @@ Use the open **Agent Skills** format (`SKILL.md` with YAML frontmatter). It is t
 and other agents use, so skills are portable in both directions.
 
 ```
-~/.config/ai-avatar/skills/
+~/.config/svara/skills/
 └── expense-report/
     ├── SKILL.md          # frontmatter: name, description (+ optional allowed-tools)
     ├── template.xlsx     # optional resources

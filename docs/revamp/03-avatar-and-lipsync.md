@@ -100,7 +100,7 @@ just writes this same file, so nothing is thrown away.
 ## 3. The performance data model
 
 ```python
-# core/src/avatar_core/performance/model.py (sketch)
+# core/src/svara_core/performance/model.py (sketch)
 
 Viseme = Literal["sil","PP","FF","TH","DD","kk","CH","SS","nn","RR","aa","E","I","O","U"]  # 15, Oculus-style set
 

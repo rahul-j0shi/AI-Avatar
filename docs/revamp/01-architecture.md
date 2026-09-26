@@ -80,7 +80,7 @@ maintainer, and it documents several deviations from the paper). We write a **mi
 to show an interviewer.
 
 ```python
-# core/src/avatar_core/kernel/ (sketch, not final code)
+# core/src/svara_core/kernel/ (sketch, not final code)
 
 class Plugin(Protocol):
     name: str
@@ -168,7 +168,7 @@ work?" always has a visible answer. A failed plugin is retried when its config c
 user clicks *Retry*. There is no automatic retry loop.
 
 **Which plugins exist.** v1 plugins are **built-in only**, listed in one static registry
-(`avatar_core/plugins.py`). There is no loading of third-party Python code: user extensibility in v1 is
+(`svara_core/plugins.py`). There is no loading of third-party Python code: user extensibility in v1 is
 MCP servers, skills and persona, which are data or out-of-process. A Python entry-point mechanism for
 third-party plugins is a post-v1 item, because loading arbitrary Python into the core would bypass
 the permission model.
@@ -178,8 +178,8 @@ the permission model.
 | Concern | Decision |
 |---------|----------|
 | Environment | The shell starts the avatar window through XWayland (`GDK_BACKEND=x11`, 02 §1.2) and applies the WebKitGTK/NVIDIA workaround env (`WEBKIT_DISABLE_DMABUF_RENDERER=1`) only when an NVIDIA proprietary driver is detected |
-| CLI actions | `ai-avatar --action talk \| stop \| show \| configure \| quit` forwards to the running instance (single-instance plugin). GNOME custom shortcuts call this (02 §1.2) |
-| Start | The shell generates a random 256-bit token and spawns the core sidecar with it in an env var (`AVATAR_TOKEN`). The core binds `127.0.0.1:0` and prints one JSON line `{"port": N, "pid": P, "protocol": 1}` on stdout. The shell reads it and gives port + token to its webviews through a Tauri command (`get_core_endpoint`), never in a URL |
+| CLI actions | `svara --action talk \| stop \| show \| configure \| quit` forwards to the running instance (single-instance plugin). GNOME custom shortcuts call this (02 §1.2) |
+| Start | The shell generates a random 256-bit token and spawns the core sidecar with it in an env var (`SVARA_TOKEN`). The core binds `127.0.0.1:0` and prints one JSON line `{"port": N, "pid": P, "protocol": 1}` on stdout. The shell reads it and gives port + token to its webviews through a Tauri command (`get_core_endpoint`), never in a URL |
 | Readiness | The shell shows the avatar in a `booting` state until the core answers `hello`. Core startup target: under 1.5 s to `hello`. Heavy models load lazily (below) |
 | Orphans | The core exits when its stdin closes (the shell holds the pipe), so a crashed shell never leaves a zombie core |
 | Crash | If the core exits unexpectedly, the shell restarts it with backoff (1 s, 2 s, 5 s, then stop and show "Core stopped: View logs / Restart") |
@@ -319,10 +319,10 @@ in any Python version.
 ## 6. Repository layout (target)
 
 ```
-ai-avatar/
-├── core/                         # Python package "avatar_core" (uv project)
+svara/
+├── core/                         # Python package "svara_core" (uv project)
 │   ├── pyproject.toml
-│   ├── src/avatar_core/
+│   ├── src/svara_core/
 │   │   ├── kernel/               # context.py fiber.py events.py
 │   │   ├── config/               # models.py (pydantic), loader.py, watcher.py
 │   │   ├── protocol/             # messages.py, server.py
@@ -342,8 +342,8 @@ ai-avatar/
 │   │   └── src/                  # React: windows/avatar, windows/conversations, windows/configure
 │   └── extension/                # README only until the extension phase (see 10)
 ├── packages/
-│   ├── avatar/                   # framework-agnostic TS: VRM loader, performance player, idle behaviours
-│   └── protocol/                 # generated TS types for the protocol
+│   ├── avatar/                   # @svara/avatar: framework-agnostic VRM renderer
+│   └── protocol/                 # @svara/protocol: generated protocol types
 ├── docs/                         # this plan, ADRs (docs/adr/NNNN-title.md), architecture diagrams
 ├── pnpm-workspace.yaml
 └── .github/workflows/ci.yml

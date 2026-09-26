@@ -1,11 +1,26 @@
-# AI Avatar — Revamp Plan
+# Svara — Revamp Plan
 
 This folder is the complete plan for rebuilding this repository into a **desktop-native, voice-first,
 plugin-first AI assistant with an animated 3D avatar** that lives on your screen.
 
-The current code (`main.py`, `talking-head/`, `backend/`, `frontend/`) is a learning prototype. It is
-kept in git history (tag `v0-prototype`) and removed from `main` in Phase 0. Nothing in it is carried
-forward except the idea of provider adapters.
+The previous code (`main.py`, `talking-head/`, `backend/`, `frontend/`) was a learning prototype. It
+is kept in git history (tag `v0-prototype`) and was removed from `main` in Phase 0. Nothing in it is
+carried forward except the idea of provider adapters.
+
+## Project identity
+
+**Svara** (स्वर) means voice, tone, musical note, and vowel. The name reflects the product's
+voice-first design and its vowel-driven lip-sync core. These identifiers are canonical:
+
+| Surface | Identifier |
+|---|---|
+| Product and desktop app | Svara |
+| Command and `.deb` package | `svara` |
+| Desktop app ID | `io.svara.desktop` |
+| Python distribution / import | `svara-core` / `svara_core` |
+| TypeScript packages | `@svara/desktop`, `@svara/avatar`, `@svara/protocol` |
+| Config, data, cache, state, keyring | `svara` |
+| Shell-to-core token environment variable | `SVARA_TOKEN` |
 
 ## The product in one paragraph
 

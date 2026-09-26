@@ -1,9 +1,9 @@
 # 08 — Configuration & data
 
-## 1. Files (all in the OS config dir via `platformdirs`, e.g. `~/.config/ai-avatar/`)
+## 1. Files (all in the OS config dir via `platformdirs`, e.g. `~/.config/svara/`)
 
 ```
-ai-avatar/
+svara/
 ├── config.json              # features, providers, voice, ui, agent limits
 ├── permissions.json         # your rules (06)
 ├── permissions.local.json   # "Always allow" clicks (machine-written)
