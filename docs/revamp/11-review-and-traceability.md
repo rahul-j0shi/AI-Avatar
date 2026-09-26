@@ -35,6 +35,8 @@ remain open. Re-run this review at the end of every phase.
 | R25 | Everything configurable; any feature can be toggled | 08 §2 (`features` + per-entry `enabled`) | 1 | Covered |
 | R26 | Better avatar tech than Ready Player Me | 03 §1 | 0 | Covered (RPM is shut down) |
 | R27 | Portfolio-ready for the job search | README principle 7; 09 "v0.5 portfolio preview"; Phase 7 | 4a, 7 | Covered |
+| R28 | Ubuntu only for now | 02 §1 (Wayland/XWayland decisions, portals, PipeWire), 06 §4, 09 packaging | 0–7 | Covered |
+| R29 | Don't focus on language; reply in the input language | 03 §4.6 | 1, 3 | Covered |
 
 ## 2. Gap log (review of the first version of this plan)
 
@@ -48,10 +50,10 @@ remain open. Re-run this review at the end of every phase.
 | G6 | How the webview loads `.vrm` files was undefined | Medium | 01 §4 `/assets` route, 03 §2 |
 | G7 | Plugin failure behaviour undefined; "why isn't X working?" had no answer | Medium | 01 §3 failure isolation, `plugin.status` |
 | G8 | Third-party Python plugins: unclear whether allowed (a security hole if yes) | Medium | 01 §3 (built-in only in v1) |
-| G9 | Mic in WKWebView / WebKitGTK, echo-cancellation quality, autoplay: unverified assumptions | High | 02 §1 platform traps (Spike A) + fallback |
-| G10 | Wayland breaks always-on-top and positioning | High for Linux | 02 §1 (X11/XWayland only in v1) |
-| G11 | OS permissions (mic, Screen Recording, Accessibility) not planned | High | 02 §1 permissions table, 09 Phase 4 |
-| G12 | Our screenshot tool would capture the avatar itself; the avatar shows in screen shares | Medium | 02 §1 exclude-from-capture |
+| G9 | Mic in the webview, echo-cancellation quality, autoplay: unverified assumptions | High | Superseded by G41: the mic moved to the core (PipeWire), 02 §1.4 |
+| G10 | Wayland breaks always-on-top and positioning | High | 02 §1.2 (the avatar window runs through XWayland; verified in Spike D) |
+| G11 | OS permissions not planned | High | 02 §1.5 (portal grants, shortcuts, echo-cancel, autostart), 09 Phase 4 |
+| G12 | Our screenshot tool would capture the avatar itself; the avatar shows in screen shares | Medium | 02 §1.2: hide during our own capture; screen-share exclusion is impossible on GNOME Wayland → documented + "Hide for 30 min" |
 | G13 | Kill-switch hotkey was scheduled after desktop tools shipped | High (safety) | 02 §3, 09 Phase 4 |
 | G14 | Bubble text vs. speech sync and tag leakage were contradictory | Medium | 02 §4 |
 | G15 | Editing JSONC from the panel would destroy user comments; lost updates | Medium | 02 §7, 08 §3 |
@@ -60,8 +62,8 @@ remain open. Re-run this review at the end of every phase.
 | G18 | Custom viseme art effort unplanned; no fallback | Medium | 03 §1 |
 | G19 | Idle/gesture animation assets and their licences unplanned (Mixamo redistribution) | Medium | 03 §1 animation assets |
 | G20 | VRM licence metadata ignored on import | Low | 03 §1 |
-| G21 | Hinglish: LLM output script vs. TTS voice mismatch | Medium | 03 §4.6 item 4, 07 §3 |
-| G22 | GPL analysis incomplete (phonemizer loads espeak in-process; Hindi always uses espeak) | Medium | 03 §4.7 |
+| G21 | Reply language vs. TTS voice mismatch | Medium | 03 §4.6 (voice-by-language map; bubble-only fallback) |
+| G22 | GPL analysis incomplete (phonemizer loads espeak in-process; non-English G2P always uses espeak) | Medium | 03 §4.7 |
 | G23 | Kokoro's PyTorch dependency would bloat the installer | Medium | 03 §4.8 |
 | G24 | Segmenter behaviour at tool calls; reasoning tokens could be spoken | Medium | 04 §2 |
 | G25 | No failure-handling design for STT/LLM/TTS errors or offline | High | 04 §4a |
@@ -69,10 +71,10 @@ remain open. Re-run this review at the end of every phase.
 | G27 | Models without tool calling or vision; no context-window management | High | 05 §2 |
 | G28 | Claude Code bridge would expose Claude Code's own Bash/Edit tools, bypassing our permissions | **Critical** | 05 §3 |
 | G29 | No privacy statement of what leaves the machine; screenshots to cloud without consent | High | 05 §6 |
-| G30 | Windows/macOS path semantics and shell-string injection in permission matching | High | 06 §3.1 |
+| G30 | Path semantics and shell-string injection in permission matching | High | 06 §3.1 (Ubuntu rules; default deny for `/proc`, `/sys`, `/dev`, removable media) |
 | G31 | Trust model gaps: MCP servers and skill text run outside permissions; `allowed-tools` semantics | High | 06 §6, 07 §1–2 |
 | G32 | No conversation boundary for an always-on assistant; memory undefined | Medium | 06 §7 |
-| G33 | MCP servers need node/uv; the macOS GUI PATH problem; no timeouts | Medium | 07 §1 |
+| G33 | MCP servers need node/uv; GNOME-launched apps don't get the `~/.bashrc` PATH; no timeouts | Medium | 07 §1 |
 | G34 | No config/DB versioning or migrations; no first-run defaults | Medium | 08 §4a |
 | G35 | Local model downloads (size, integrity, offline first run) unplanned | High | 08 §6 |
 | G36 | Always-on resource budget (RAM/CPU) undefined | Medium | 01 §3a |
@@ -81,12 +83,30 @@ remain open. Re-run this review at the end of every phase.
 | G39 | No effort estimates and no earlier portfolio milestone | Medium | 09 effort table + v0.5 |
 | G40 | No end-to-end or platform test layer; no licence review or clean-machine test | Medium | 09 testing + Phase 7 |
 
+**Second review, after the Ubuntu-only and language decisions:**
+
+| # | Gap found | Severity | Fixed in |
+|---|-----------|----------|----------|
+| G41 | Ubuntu 26.04 has **no Xorg session**, so "run under X11" is impossible. The design must work in the default Wayland session | High | 02 §1.1–1.2 (XWayland for the avatar window only) |
+| G42 | Cursor-poll click-through fails under XWayland (the cursor position is stale over Wayland windows) | High | 02 §1.2: input shape region, no polling |
+| G43 | `mss`/`pynput` can't see or control Wayland apps; window listing and focusing other apps are forbidden | High | 02 §1.2 and 06 §4: Screenshot/RemoteDesktop portals, AT-SPI, `gio launch` |
+| G44 | Global hotkeys: an XWayland app can't grab keys; the GlobalShortcuts portal is missing on 24.04 (GNOME 46) | High | 02 §1.2: GNOME custom shortcuts → `ai-avatar --action` CLI |
+| G45 | WebKitGTK risk (CPU painting under XWayland, NVIDIA blank windows) is much bigger when Linux is the *only* platform | High | 02 §1.3: Tauri vs Electron decided by measurement; NVIDIA env workaround |
+| G46 | Clipboard reads need focus on Wayland; the core has no window | Medium | 06 §4: clipboard is a surface-provided tool |
+| G47 | Echo cancellation for barge-in on Linux | Medium | 02 §1.4: PipeWire echo-cancel in monitor mode |
+| G48 | Fractional scaling blurs XWayland windows | Low | 02 §1.2: 100%/200% supported, fractional best-effort |
+| G49 | Snap-packaged Firefox/Chromium restrict native messaging (extension) | Low (post-v1) | 10 §3.7 |
+| G50 | Packaging: glibc compatibility across 24.04/26.04, `.deb` dependencies | Medium | 01 §7 CI, 09 Phase 7 |
+
 ## 3. Risk register (what can still go wrong)
 
 | Risk | Likelihood | Impact | Mitigation / trigger |
 |------|-----------|--------|----------------------|
-| Tauri transparent WebGL window or webview mic fails on a target OS | Medium | High | Spike A gate → Electron swap (the shell is thin by design) or drop the OS for v1 |
-| Echo cancellation is too weak for barge-in on laptop speakers | Medium | Medium | Headphones-only barge-in, or duck-and-gate; the feature can be toggled |
+| WebKitGTK rendering is too slow or glitchy on Ubuntu (esp. NVIDIA) | Medium–High | High | Spike A built for both shells; Electron chosen if Tauri misses the measured bar (02 §1.3) |
+| A future GNOME update changes XWayland always-on-top or positioning behaviour | Low–Medium | High | Spike D documents current behaviour; watch GNOME release notes; fallback: a small GNOME Shell extension that pins the window |
+| Portal consent is not remembered on one release (repeated dialogs) | Medium | Medium | Restore tokens / permission store; if it isn't remembered, screenshots and computer use stay opt-in with a clear explanation |
+| PipeWire echo-cancel drop-in conflicts with the user's audio setup | Low–Medium | Medium | Opt-in, one-click revert (remove the drop-in), headphones fallback |
+| Echo cancellation is too weak for barge-in on laptop speakers | Medium | Medium | PipeWire WebRTC AEC first; then headphones-only barge-in or duck-and-gate; the feature can be toggled |
 | Kokoro gives no usable timing | Low–Medium | High | Tier B via cloud TTS, or Tier C forced alignment moves into Phase 3b |
 | Lip sync looks "off" despite correct data | Medium | High | Lip-sync lab + tuning parameters (lookahead, attack/release) in `avatar.json`; vrm-basic fallback |
 | Anthropic changes subscription terms again | High | Low (by design) | The bridge is one optional plugin; the API-key path is unaffected |
@@ -113,5 +133,6 @@ Each piece of structure has to justify itself against a concrete requirement:
 
 ## 5. Still open (needs your answer)
 
-The five open questions in the [README](README.md#open-questions-for-you). Questions 1 (target OSes)
-and 4 (Hinglish in v1) block Phase 0 planning. Questions 2, 3 and 5 can be answered during Phase 0.
+The three open questions in the [README](README.md#open-questions-for-you) (Claude path, extension
+pairing, resume). None of them blocks Phase 0. The platform (Ubuntu) and language (agnostic) questions
+are decided.

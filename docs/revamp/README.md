@@ -13,7 +13,7 @@ A small 3D character sits in the bottom-right corner of your desktop, always on 
 anywhere. Double-click it and it listens; or type to it. It answers as a speech bubble, out loud with
 accurate lip sync and facial expressions, or both. It can act on your computer through tools that sit
 behind a permission system (read-only by default). It connects to any LLM provider, to MCP servers,
-and loads Agent Skills that you can write inside the app. Right-click gives you **Talk / Type /
+and loads Agent Skills that you can write inside the app. v1 runs on Ubuntu. Right-click gives you **Talk / Type /
 Conversations / Configure / Exit**. Every feature can be switched on or off live. The same core will
 later drive a browser extension; that is planned for, not built.
 
@@ -60,34 +60,37 @@ later drive a browser extension; that is planned for, not built.
 |------|----------|----------|
 | Core language | Python **3.14** (standard build), `asyncio` + `TaskGroup`, `uv` | Python 3.7+ scripts |
 | Parallelism | asyncio for I/O; native inference in a thread pool (native code releases the GIL). Free-threaded `3.14t` stays an opt-in experiment | "use new Python for multithreading" |
-| Desktop shell | **Tauri 2** (Rust) + **React + TypeScript + Vite**; fall back to Electron only if the Phase 0 spike fails on a target OS | Streamlit, then vanilla HTML |
+| Platform | **Ubuntu 24.04 LTS and 26.04 LTS only** (GNOME, default Wayland session; the avatar window runs through XWayland; portals for screenshots/input). Other OSes post-v1 | — |
+| Desktop shell | **Tauri 2** (Rust) or **Electron**, chosen by a measured Phase 0 spike on Ubuntu (WebKitGTK is Tauri's weak spot), + **React + TypeScript + Vite** | Streamlit, then vanilla HTML |
+| Language | Language-agnostic: replies in the user's input language; lip sync via IPA phonemes works for any language espeak-ng covers; developed and tested in English | Hinglish-only prompt |
 | 3D | **three.js + @pixiv/three-vrm**, **VRM 1.0** avatars | Ready Player Me (shut down 31 Jan 2026) + Babylon.js |
 | Lip sync | In-house performance engine: phonemes + timings → 15-viseme track + amplitude envelope → per-avatar retarget map | TalkingHead library |
 | Default TTS | **Kokoro-82M** (local, Apache-2.0, gives phonemes and timings). Cloud: ElevenLabs, OpenAI, Azure | MiniMax / Coqui |
-| Default STT | **faster-whisper** (local) + **Silero VAD**. Cloud: Deepgram, Google Cloud STT v2, OpenAI | Whisper API with a volume threshold |
+| Default STT | Mic captured by the core through **PipeWire** (with its WebRTC echo cancellation) + **faster-whisper** (local) + **Silero VAD**. Cloud: Deepgram, Google Cloud STT v2, OpenAI | Whisper API with a volume threshold |
 | LLM | Own `ChatModel` port: Anthropic (API key), OpenAI-compatible (OpenAI, OpenRouter, Ollama, LM Studio, DeepSeek…), Gemini. Plus an experimental `AgentBackend` bridge to the user's own Claude Code install | MiniMax / OpenAI hard-coded |
 | Agent loop | Own small streaming tool-calling loop (≈200 lines) with await-able approvals | LangGraph |
 | Plugins | Own mini kernel following Cordis semantics (context, services, inject, reversible effects, events) | — |
 | Extensibility | MCP client (stdio + streamable HTTP, Claude-Desktop-compatible `mcp.json`), Agent Skills (`SKILL.md`), `persona.md` | — |
 | Storage | JSON config + OS keychain for secrets + SQLite event log | `sessionStorage` API keys |
 
+## Decided
+
+- **Platform:** Ubuntu only for v1 (24.04 LTS and 26.04 LTS). See 02 §1.
+- **Language:** no language-specific work. The assistant replies in the user's language. See 03 §4.6.
+
 ## Open questions for you
 
 These change the plan, so I need your answer on them. Each is also listed in the relevant document.
 
-1. **Target OSes for v1.** Windows + macOS only, or Linux too? Linux WebKitGTK makes transparent WebGL
-   windows the riskiest part of Tauri (see 02).
-2. **The Claude subscription.** Anthropic's terms do not allow a third-party app to use Claude
+1. **The Claude subscription.** Anthropic's terms do not allow a third-party app to use Claude
    Free/Pro/Max OAuth tokens. The only compliant subscription path is driving the **official Claude Code
    CLI** that you log into yourself, and Anthropic's policy and billing for that path changed several
    times in 2026 (see 05). Proposal: Anthropic **API key** is the supported Claude path, and the Claude
    Code bridge is an experimental, off-by-default adapter. OK?
-3. **"Claude login mandatory, same account" for extension sync.** Because of (2) the app can't use
+2. **"Claude login mandatory, same account" for extension sync.** Because of (1) the app can't use
    the Claude account as its identity. Proposal: the extension pairs with the local desktop core using a
    one-time pairing code (see 10). OK?
-4. **Hinglish.** Is Hinglish/Hindi still a goal for v1, or English first with Hinglish as a milestone?
-   It changes G2P and voice choice a lot (see 03, 04).
-5. **Resume alignment.** The plan swaps Babylon.js → three.js, Ready Player Me → VRM, Coqui → Kokoro
+3. **Resume alignment.** The plan swaps Babylon.js → three.js, Ready Player Me → VRM, Coqui → Kokoro
    (Coqui kept as an optional adapter), LangGraph → own loop. The resume bullets should be updated to
    match what gets built, because interviewers will open the repo.
 
@@ -100,3 +103,6 @@ These change the plan, so I need your answer on them. Each is also listed in the
 - Claude subscription / OAuth policy: [The Register, Feb 2026](https://www.theregister.com/2026/02/20/anthropic_clarifies_ban_third_party_claude_access/), [The New Stack on Agent SDK credit pools](https://thenewstack.io/anthropic-agent-sdk-credits/), [pause of the June 15 change](https://www.digitalapplied.com/blog/anthropic-claude-credit-overhaul-june-15-2026)
 - Python free-threading: [Python docs: free-threading HOWTO](https://docs.python.org/3/howto/free-threading-python.html)
 - Tauri click-through: [tauri#6164 (no forward option)](https://github.com/tauri-apps/tauri/issues/6164), [DeskPet cursor-poll approach](https://github.com/Scyyyy4/deskpet/pull/3)
+- Ubuntu/GNOME: [Ubuntu 26.04 drops the Xorg session (Let's Data Science)](https://letsdatascience.com/news/ubuntu-resolute-raccoon-drops-xorg-keeps-x11-apps-d88e821a), [GNOME X11 session removal FAQ](https://blogs.gnome.org/alatiera/2025/06/23/x11-session-removal-faq/), [GNOME 48 global shortcuts portal](https://release.gnome.org/48/developers/)
+- WebKitGTK on Linux: [XWayland/Skia CPU painting issue](https://github.com/nukleas/cycletron/issues/8), [NVIDIA + WebKitGTK idle CPU issue](https://github.com/phase-rs/phase/issues/8614)
+- PipeWire echo cancellation: [module-echo-cancel docs](https://docs.pipewire.org/page_module_echo_cancel.html)

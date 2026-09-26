@@ -29,8 +29,9 @@ each can be toggled individually.
 - **Runtime prerequisites:** most stdio servers need `node`/`npx` or `uv`/`uvx` installed on your
   machine, and the app does not bundle them. If the command isn't found, the server's status is
   "`npx` not found — install Node.js" with a link, instead of a cryptic spawn error. The PATH used to
-  spawn servers is your login-shell PATH (resolved once at startup). This matters on macOS, where GUI
-  apps don't inherit the terminal PATH.
+  spawn servers is your login-shell PATH, resolved once at startup (`bash -lic 'echo $PATH'`). This
+  matters on Ubuntu because apps launched from the GNOME dock don't read `~/.bashrc`, where tools like
+  `nvm` add `node` to the PATH.
 - **Timeouts:** connect 20 s, tool call 60 s (per-server override). A hung server never blocks a
   turn forever.
 - **Trust:** see 06 §6. MCP servers run outside the permission engine's reach.
@@ -86,7 +87,6 @@ description: Fill the monthly expense template from receipts in ~/Downloads/rece
 ```markdown
 ---
 name: Aria
-language: en            # or "hinglish", "hi"
 voice: kokoro:af_heart  # optional override of the TTS voice
 ---
 You are Aria, a calm, witty desktop companion. Keep spoken replies under 3 sentences unless asked.
@@ -94,8 +94,8 @@ Use [happy] when greeting, [thinking] before long answers. Never read code aloud
 ```
 
 - The `persona` plugin registers it as the first prompt section. Frontmatter can override voice and
-  language (applied via config reconfigure). `language` also drives the output script and G2P path
-  (03 §4.6), so the text, the voice and the lip sync always agree.
+  speed (applied via config reconfigure). Reply language follows the user's input unless the persona
+  text says otherwise (03 §4.6).
 - If the voice named in frontmatter doesn't exist in the active TTS provider, the plugin warns in the
   panel and uses the provider default. A persona never breaks voice output.
 - The panel gives an editor with a live "test in bubble" button. Multiple personas (switchable from

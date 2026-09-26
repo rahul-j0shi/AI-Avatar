@@ -6,11 +6,11 @@ There are two processes and one protocol between them.
 
 ```
 ┌──────────────────────────── Desktop shell (Tauri 2) ───────────────────────────┐
-│  Rust: windows, tray, native context menu, click-through poll, global hotkeys,  │
+│  Rust: windows, tray, context menu, input-region click-through, CLI actions     │
 │        starts/stops the core sidecar, hands the webviews a session token        │
 │                                                                                 │
 │  Webviews (React + TS):                                                         │
-│   • Avatar window   – three.js/VRM renderer, bubble, mic capture, audio playback│
+│   • Avatar window   – three.js/VRM renderer, bubble, audio playback            │
 │   • Conversations   – history viewer                                            │
 │   • Configure       – settings panel (models, voice, looks, persona, skills,    │
 │                       MCP, permissions, features)                               │
@@ -144,7 +144,8 @@ surface tools are mounted as plugins *inside the core* (see 10).
 | `secrets` | plugin (`ctx.secrets`) | OS keychain via `keyring` |
 | `providers.llm.*` | plugins (`ctx.llm`) | `ChatModel` adapters (see 05) |
 | `providers.stt.*` / `providers.tts.*` | plugins (`ctx.stt`, `ctx.tts`) | Speech adapters (see 04) |
-| `pipeline` | plugin, injects `stt? llm tts? performance?` | VAD, turn orchestration, sentence segmenter, barge-in |
+| `audio.input.pipewire` | plugin (`ctx.mic`) | Mic capture from PipeWire (echo-cancelled source when available), pre-roll ring buffer (Ubuntu desktop; see 02 §1.4) |
+| `pipeline` | plugin, injects `stt? llm tts? performance? mic?` | VAD, turn orchestration, sentence segmenter, barge-in |
 | `performance` | plugin (`ctx.performance`) | G2P, viseme tracks, expressions, gestures (see 03) |
 | `agent` | plugin (`ctx.agent`), injects `llm tools` | Tool-calling loop, prompt assembly |
 | `tools` | plugin (`ctx.tools`) | Tool registry and permission engine (see 06) |
@@ -176,6 +177,8 @@ the permission model.
 
 | Concern | Decision |
 |---------|----------|
+| Environment | The shell starts the avatar window through XWayland (`GDK_BACKEND=x11`, 02 §1.2) and applies the WebKitGTK/NVIDIA workaround env (`WEBKIT_DISABLE_DMABUF_RENDERER=1`) only when an NVIDIA proprietary driver is detected |
+| CLI actions | `ai-avatar --action stop \| talk \| show` forwards to the running instance (single-instance plugin). GNOME custom shortcuts call this (02 §1.2) |
 | Start | The shell generates a random 256-bit token and spawns the core sidecar with it in an env var (`AVATAR_TOKEN`). The core binds `127.0.0.1:0` and prints one JSON line `{"port": N, "pid": P, "protocol": 1}` on stdout. The shell reads it and gives port + token to its webviews through a Tauri command (`get_core_endpoint`), never in a URL |
 | Readiness | The shell shows the avatar in a `booting` state until the core answers `hello`. Core startup target: under 1.5 s to `hello`. Heavy models load lazily (below) |
 | Orphans | The core exits when its stdin closes (the shell holds the pipe), so a crashed shell never leaves a zombie core |
@@ -207,13 +210,14 @@ Message catalogue (v1):
 |-----------|------|---------|
 | surface → core | `hello` | surface kind (`desktop.avatar`, `desktop.panel`, later `extension`), capabilities, protocol version |
 | surface → core | `input.text` | Typed message |
-| surface → core | `input.audio.begin` / binary PCM / `input.audio.end` | Mic stream (16 kHz mono s16le, 20 ms frames) |
+| surface → core | `listen.start` / `listen.stop` | Double-click / push-to-talk: start or stop listening. On the desktop the core captures the mic itself |
+| surface → core | `input.audio.begin` / binary PCM / `input.audio.end` | *Reserved for surfaces that capture the mic themselves (the browser extension):* 16 kHz mono s16le, 20 ms frames |
 | surface → core | `turn.cancel` | User interrupted |
 | surface → core | `permission.reply` | allow_once / allow_always / deny for a request id |
 | surface → core | `config.get` / `config.patch` | Settings panel reads and writes |
 | surface → core | `conversation.list` / `conversation.get` | Conversations window |
-| surface → core | `tools.register` / `tool.result` | *Reserved for the extension:* surface-provided tools |
-| core → surface | `tool.call` | *Reserved for the extension:* ask the surface to run one of its registered tools |
+| surface → core | `tools.register` / `tool.result` | Surface-provided tools. Used in v1 by the avatar surface for the clipboard (06 §4), and later by the browser extension |
+| core → surface | `tool.call` | Ask the surface to run one of its registered tools |
 | core → surface | `state` | Assistant state (see the state machine below) |
 | core → surface | `transcript` | Partial and final user transcript |
 | core → surface | `assistant.delta` / `assistant.done` | Streaming text for bubble and log |
@@ -232,7 +236,7 @@ Message catalogue (v1):
 **Routing.** Each connection says in `hello` which *topics* it wants. The avatar window subscribes to
 `turn` (state, transcript, deltas, performance, tool activity, permission requests). Conversations
 subscribes to `conversation`. Configure subscribes to `config` and `plugin`. Only the avatar surface
-receives `performance.*` and audio, and only the avatar surface may send mic audio. If two surfaces
+receives `performance.*` and audio. Mic audio comes from the core's own `mic` plugin on the desktop. If two surfaces
 claim the avatar role (later: desktop + extension overlay), the most recently *focused* one gets
 performance output, and the other shows the text only.
 
@@ -332,7 +336,8 @@ ai-avatar/
 │   └── tests/
 ├── apps/
 │   ├── desktop/                  # Tauri 2 app
-│   │   ├── src-tauri/            # Rust: windows, menu, click-through, sidecar
+│   │   ├── src-tauri/            # Rust: windows, menu, input-region click-through, sidecar
+│   │   │                         #   (or electron/ if Spike A picks Electron, see 02 §1.3)
 │   │   └── src/                  # React: windows/avatar, windows/conversations, windows/configure
 │   └── extension/                # README only until the extension phase (see 10)
 ├── packages/
@@ -352,7 +357,8 @@ portfolio) can render the same avatar. That is the one place where early separat
   `pytest` + `pytest-asyncio` + `hypothesis`.
 - **TypeScript:** `pnpm`, Vite, `biome` (lint + format), `vitest`, `tsc --noEmit`.
 - **Rust:** `cargo fmt`, `clippy`. Keep the Rust side small.
-- **CI:** GitHub Actions matrix (ubuntu, windows, macos) running lint, type checks, unit tests and the
-  protocol drift check. Release builds come in Phase 7.
+- **CI:** GitHub Actions on `ubuntu-24.04` (plus the test suite in an `ubuntu:26.04` container)
+  running lint, type checks, unit tests and the protocol drift check. Release builds (`.deb`) are
+  built on 24.04 so the bundled core links against the older glibc and runs on both releases.
 - **ADRs:** one short Markdown file per decision in the table in the README, so reviewers can see the
   reasoning.

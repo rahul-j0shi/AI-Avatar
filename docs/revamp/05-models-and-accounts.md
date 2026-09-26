@@ -114,8 +114,8 @@ your machine. The future extension pairs with the desktop core using a one-time 
 
 ## 5. Secrets
 
-- API keys are stored in the **OS keychain** (`keyring`: Windows Credential Manager, macOS Keychain,
-  Secret Service on Linux) under the service name `ai-avatar`. Config files hold only a reference:
+- API keys are stored in the **OS keychain** (`keyring` → Secret Service, i.e. GNOME Keyring on
+  Ubuntu, unlocked at login) under the service name `ai-avatar`. Config files hold only a reference:
   `"apiKey": {"secret": "openrouter"}`.
 - Keys never go to the webview after being saved. The panel shows `••••last4` and a *Test* button that
   the core runs.

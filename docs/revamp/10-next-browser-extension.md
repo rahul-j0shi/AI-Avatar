@@ -38,16 +38,19 @@ Paired mode comes first because it reuses 100% of the core.
    same `PerformancePlayer` and the same protocol messages.
 6. **Which surface talks:** if both the desktop avatar and the in-page overlay are active, the most
    recently focused one gets voice and performance output (01 §4 routing).
-7. **Browsers:** Chrome and Edge first (same Manifest V3 and native-messaging APIs). Firefox needs a
-   separate native-messaging manifest and is later. The desktop installer registers the
-   native-messaging host for each installed browser.
+7. **Browsers on Ubuntu:** Google Chrome (`.deb`) first. Native messaging works normally there,
+   and the host manifest goes in `~/.config/google-chrome/NativeMessagingHosts/`. Ubuntu's
+   **Firefox and Chromium are snaps**, and snap confinement restricts native messaging (Firefox
+   routes it through the WebExtensions portal). They get tested separately, later. The desktop `.deb`
+   registers the host for each detected browser.
 8. **Configuration:** the extension's own settings page is minimal and links to *Configure* in the
    desktop app. Everything is still configured in one place, as you wanted.
 
 ## 4. What v1 must do to keep this door open (already in the plan)
 
 - The core owns all logic; surfaces are thin (01 §1).
-- Protocol has `hello.surface`, `tools.register`, `tool.call/result` reserved from day one (01 §4).
+- Protocol has `hello.surface` and `input.audio.*` from day one, and `tools.register` / `tool.call` /
+  `tool.result` are already exercised in v1 by the avatar surface's clipboard tools (01 §4).
 - `packages/avatar` has no React/Tauri dependencies (01 §6).
 - Permissions are capability strings, not hard-coded desktop concepts (06 §3).
 - `apps/extension/README.md` exists with a short version of this document and a link here.

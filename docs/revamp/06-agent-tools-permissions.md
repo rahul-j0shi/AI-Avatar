@@ -81,9 +81,10 @@ matching, so `~/Documents/../.ssh/id_rsa` can't slip through.
 - Paths are expanded (`~`, env vars), made absolute, `realpath`-resolved (symlinks, `..`) and then
   matched. A path that doesn't exist yet (a write target) is resolved through its nearest existing
   parent.
-- On **Windows**, matching is case-insensitive, `\` and `/` are equivalent, drive letters are
-  normalised, and `\\?\` / UNC prefixes are handled. On macOS, matching is case-insensitive by default
-  (APFS default). On Linux it is case-sensitive.
+- On Ubuntu, matching is **case-sensitive** and byte-exact after normalisation. (Case-insensitive
+  and Windows path rules belong to future ports and live behind the same `PathMatcher` interface.)
+- Mounted and removable drives (`/media/$USER/**`), `/proc`, `/sys` and `/dev` are denied by default
+  in the built-in deny list.
 - `shell.exec` rules match the **argv** (`git status` matches `["git","status"]`), never a shell
   string. Commands run without a shell, so `git status; rm -rf ~` can't be smuggled in.
 - For tools with several resources (e.g. `fs.move(src, dst)`), **every** resource must pass. `move`
@@ -122,14 +123,26 @@ counts as Deny.
 
 | Phase | Tools | Capability | Default |
 |-------|-------|-----------|---------|
-| 4a (read) | `fs.list`, `fs.read_file` (text, PDF text, image → vision), `fs.search` (name/content, bounded), `clipboard.read`, `screen.capture` (one monitor or window), `windows.list`, `apps.list`, `system.info` | `fs.read`, `clipboard.read`, `screen.capture`… | Allowed in read-only |
-| 4b (act) | `fs.write_file`, `fs.move`, `fs.trash` (never hard delete), `clipboard.write`, `app.open`, `url.open`, `window.focus`, `notify` | `fs.write`, `app.open`… | Ask/deny by mode |
+| 4a (read) | `fs.list`, `fs.read_file` (text, PDF text, image → vision), `fs.search` (name/content, bounded), `clipboard.read`, `screen.capture` (one monitor or window), `apps.running` / `apps.focused` (AT-SPI), `apps.list` (installed `.desktop` entries), `system.info` | `fs.read`, `clipboard.read`, `screen.capture`… | Allowed in read-only |
+| 4b (act) | `fs.write_file`, `fs.move`, `fs.trash` (never hard delete), `clipboard.write`, `app.open` (also brings a running app to the front), `url.open`, `notify` | `fs.write`, `app.open`… | Ask/deny by mode |
 | 4c (exec) | `shell.exec` (no shell interpolation; argv list; cwd; timeout; output cap) | `shell.exec` | Deny unless a rule allows |
 | 4d (computer use) | `input.move/click/type/key/scroll` + screenshot loop | `input.control` | Ask every time, stop hotkey, visible "controlling" state on the avatar |
 
-Libraries: `mss` (screenshots), `pyperclip`/native (clipboard), `psutil` (processes),
-platform launchers (`os.startfile`, `open`, `xdg-open`), `pynput` (input). Per-OS code sits behind one
-small interface per tool, with the OS picked at mount time.
+**How each tool works on Ubuntu (GNOME Wayland)**, with the reasons in 02 §1.2:
+
+| Tool group | Implementation |
+|-----------|----------------|
+| `fs.*` | Python stdlib; `fs.trash` uses the freedesktop Trash spec (`gio trash`) |
+| `screen.capture` | xdg-desktop-portal **Screenshot** over D-Bus (`jeepney`/`dbus-fast`), consent remembered by GNOME. The avatar hides for the capture frame |
+| `apps.*` | Installed apps from XDG `.desktop` entries; running and focused apps from **AT-SPI** |
+| `app.open` / `url.open` | `gio launch <desktop-file>` / `xdg-open` |
+| `notify` | `org.freedesktop.Notifications` over D-Bus |
+| `clipboard.*` | Executed **by the avatar surface** (Tauri/Electron clipboard API), registered with `tools.register` (01 §4). Only a focused client may read the Wayland clipboard, and the shell is that client. `clipboard.read` explains itself when it isn't focused |
+| `input.*` (4d) | xdg-desktop-portal **RemoteDesktop** (+ ScreenCast) with a restore token; no uinput/ydotool |
+| `shell.exec` | `asyncio.create_subprocess_exec` (argv, no shell), minimal env, timeout, output cap |
+
+Each group sits behind a small interface (`ScreenCapture`, `AppLauncher`, `InputController`,
+`AppInspector`), so future macOS/Windows ports add implementations without touching the tools.
 
 **Computer use (4d):** with Anthropic models, use the native computer-use tool definition. With other
 vision models, use a generic loop: screenshot → the model returns an action in our JSON schema →

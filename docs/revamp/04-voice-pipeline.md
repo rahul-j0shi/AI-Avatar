@@ -4,13 +4,14 @@
 
 | Step | Where | Why |
 |------|-------|-----|
-| Mic capture | **Webview** (`getUserMedia` + `AudioWorklet`) | The browser's echo cancellation uses the webview's own playback as its reference, and it has to. Without it the avatar hears itself and barge-in breaks. The same code also works in the future extension |
+| Mic capture | **Core** (`audio.input.pipewire` plugin, `sounddevice` on PipeWire) | WebKitGTK's `getUserMedia` is fragile on Linux. PipeWire's echo-cancel module (monitor mode) cancels whatever the system plays, including our webview's playback, so barge-in works with speakers (02 §1.4). The future extension captures in the browser and streams frames over the protocol instead |
 | VAD, STT, LLM, TTS, visemes | **Core** | All logic in one place; providers are adapters |
 | Playback | **Webview** (`AudioContext`) | Must share one clock with the face (see 03 §5) |
 
-The worklet downsamples to **16 kHz mono s16le, 20 ms frames** and streams binary frames only while
-listening. It keeps a **300 ms pre-roll ring buffer**, so the first syllable before VAD triggers isn't
-lost.
+The mic plugin reads **16 kHz mono s16le, 20 ms frames**. The stream is open only while listening (and
+while speaking, if barge-in is on). It keeps a **300 ms pre-roll ring buffer**, so the first syllable
+before VAD triggers isn't lost. It prefers `ai-avatar-ec-source` when present, otherwise the default
+source. The source is selectable in *Configure → Voice*.
 
 ## 2. Turn orchestration
 
@@ -32,7 +33,7 @@ typed text ─►│                    └──────► text deltas ─
 - **STT:** streaming adapters emit partial and final transcripts. Utterance adapters transcribe the
   buffered utterance at end-of-speech. Partials go to the bubble ghost line.
 - **Segmenter:** consumes LLM text deltas. It emits a sentence when it sees a sentence boundary
-  (`. ! ? ।` plus newline) *and* the sentence has ≥ 4 words, or when it reaches 180 chars at a comma.
+  (Unicode sentence terminators plus newline) *and* the sentence has ≥ 4 words, or when it reaches 180 chars at a comma.
   It extracts `[expression]` tags into cues and skips markdown and code blocks for speech (they still
   show in the bubble). The **first sentence** is allowed to be short, which cuts time-to-first-audio.
 - **Segmenter edge cases:**
@@ -74,13 +75,13 @@ class TextToSpeech(Protocol):
 
 | Kind | Adapter | Local/cloud | Notes |
 |------|---------|-------------|-------|
-| STT | **faster-whisper** (default) | Local | CTranslate2. `small`/`medium` models; multilingual incl. Hindi |
+| STT | **faster-whisper** (default) | Local | CTranslate2. `small`/`medium` models; multilingual with language auto-detect |
 | STT | Deepgram | Cloud | True streaming, low latency |
 | STT | Google Cloud Speech-to-Text v2 | Cloud | Streaming; kept because it's on the resume |
 | STT | OpenAI transcription | Cloud | Utterance-level |
 | TTS | **Kokoro-82M** (default) | Local | Apache-2.0, fast on CPU, Tier-A alignment (see 03) |
 | TTS | ElevenLabs | Cloud | Streaming + character timestamps (Tier B) |
-| TTS | Azure Speech | Cloud | Viseme events (Tier A), `hi-IN` voices |
+| TTS | Azure Speech | Cloud | Viseme events (Tier A), many languages |
 | TTS | OpenAI TTS | Cloud | No alignment → Tier C/D |
 | TTS | Coqui (`coqui-tts`, the maintained idiap fork) | Local | Optional. Coqui the company closed in 2024, and XTTS weights are under a non-commercial licence |
 
@@ -98,7 +99,7 @@ service-account JSON, which is imported into the keychain as a blob and never ke
 
 | Failure | Behaviour |
 |---------|-----------|
-| No mic / mic permission denied | Voice input plugin goes `pending: needs microphone`. Double-click opens the type box instead and explains why |
+| No mic / no PipeWire source | Voice input plugin goes `pending: no microphone found`. Double-click opens the type box instead and explains why |
 | STT provider error / timeout | One retry. If it fails again, the avatar says (bubble) "I couldn't hear that — try again or type". The turn ends and the audio is not stored |
 | Empty or noise-only transcript | No turn is started (a filter on minimum words and confidence). This prevents replies to coughs |
 | LLM 401 / invalid key | Turn fails with "Your <provider> key was rejected — open Configure". The provider plugin is marked with an error |

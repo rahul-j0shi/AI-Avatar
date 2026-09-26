@@ -159,7 +159,7 @@ chosen default TTS gives no usable timing, in which case Tier C moves into Phase
 
 ```
 sentence text ──► normalise (numbers, abbreviations, emoji → words)
-              ──► G2P  (misaki for English, espeak-ng fallback; Hinglish path in §4.6)
+              ──► G2P  (misaki for English, espeak-ng for other languages, see §4.6)
               ──► phoneme sequence (IPA)
 timing source ──► phoneme timeline [(phoneme, start_ms, end_ms)]
                    · Tier A: direct
@@ -222,25 +222,22 @@ The 15 internal visemes map to whatever the model has. This is data, not code:
 - **Feature flags:** `lipsync`, `expressions`, `gestures`, `idle.gazeFollowsCursor` can each be
   turned off.
 
-### 4.6 Hinglish / Hindi
+### 4.6 Language
 
-Romanised Hinglish ("kya haal hai") run through English G2P often gets the phonemes wrong, because
-English spelling rules guess the vowels of words like "kya" and "haal" incorrectly. Plan:
+**No language-specific work is planned.** The pipeline is language-agnostic by construction:
 
-1. v1: English + Hindi (Devanagari) through espeak-ng/Kokoro's Hindi support. Hinglish text goes
-   through English G2P (it is imperfect, but the lips still close on the right consonants, which is
-   what viewers notice most).
-2. Milestone: **Romanised-Hindi → Devanagari transliteration** (e.g. AI4Bharat IndicXlit) per word,
-   chosen by a small language-ID step. Then use Hindi G2P for those words.
-3. Pick TTS voices that handle code-switching (test Kokoro Hindi voices, ElevenLabs multilingual,
-   Azure `hi-IN`).
-4. **The text the LLM writes must match what the TTS voice can read.** A Hindi voice that expects
-   Devanagari reads Romanised Hinglish badly, and an English voice mangles Devanagari. So the persona
-   `language` setting drives three things together: the prompt instruction (which script to write
-   in), the TTS voice, and the G2P path. The bubble can still show Romanised text while the TTS gets a
-   transliterated copy. This is one small `script` normalisation step in the segmenter.
-
-**Needs your input:** is Hinglish a v1 requirement (open question 4)?
+- **Reply language follows the input.** A built-in prompt rule says "reply in the language the user
+  wrote or spoke in". The persona can override it, as free text in `persona.md`. STT auto-detects the
+  spoken language.
+- **Lip sync works for any language** because the viseme table maps **IPA phonemes**, not letters.
+  English uses misaki (best quality). Every other language goes through espeak-ng's G2P (100+
+  languages) using the language code from STT, or from a cheap text language-ID for typed input. If a
+  language isn't covered at all, Tier D (audio-only) still moves the mouth.
+- **Voice:** the TTS voice is whatever the user picked. An optional `tts.voicesByLanguage` map
+  (`{"de": "…", "es": "…"}`) picks a matching voice when one exists. If the active TTS can't speak the
+  language, that turn falls back to bubble-only with a small note, so we never read text aloud with the
+  wrong phonology.
+- v1 is developed and tested in **English**. Other languages are best-effort, and the README says so.
 
 ### 4.7 Licences to watch
 
@@ -248,8 +245,7 @@ The repo is **Apache-2.0**. espeak-ng and the `phonemizer` package are **GPL-3.0
 loads the espeak library in-process, so we don't use it). Calling the `espeak-ng` executable as a
 separate process is "mere aggregation" and keeps the app Apache-2.0. The installer must still ship
 espeak-ng's licence text and say where its source is. misaki and Kokoro are Apache-2.0. Note that
-misaki falls back to espeak for languages it doesn't cover natively, and **Hindi is one of them**, so
-the Hindi path always uses the subprocess. A full licence review of every bundled dependency is a
+every non-English language goes through the espeak-ng subprocess (§4.6). A full licence review of every bundled dependency is a
 Phase 7 task (`THIRD_PARTY_NOTICES.md`, generated).
 
 ### 4.8 Kokoro packaging choice

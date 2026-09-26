@@ -11,24 +11,24 @@ planning ranges, not promises. Spikes can move them.
 
 | Phase | Weeks | Cumulative |
 |-------|-------|-----------|
-| 0 Reset + spikes | 1–2 | 1–2 |
-| 1 Kernel + text brain | 2–3 | 3–5 |
-| 2 Desktop presence | 2–3 | 5–8 |
-| 3 Voice + performance | 4–6 | 9–14 |
-| 4 Agent + tools + permissions | 3–4 | 12–18 |
-| 5 MCP + skills + providers | 2–3 | 14–21 |
-| 6 Config panel + polish | 2–3 | 16–24 |
-| 7 Ship | 1–2 | 17–26 |
+| 0 Reset + spikes (A twice, B, C, D) | 2–3 | 2–3 |
+| 1 Kernel + text brain | 2–3 | 4–6 |
+| 2 Desktop presence | 2–3 | 6–9 |
+| 3 Voice + performance | 4–6 | 10–15 |
+| 4 Agent + tools + permissions | 3–4 | 13–19 |
+| 5 MCP + skills + providers | 2–3 | 15–22 |
+| 6 Config panel + polish | 2–3 | 17–25 |
+| 7 Ship | 1–2 | 18–27 |
 
 **Because this is for a job search, there is an earlier cut: "v0.5 — portfolio preview"** at the end
-of Phase 4a (read-only tools), about 10–15 weeks in:
+of Phase 4a (read-only tools), about 11–16 weeks in:
 
 - Floating avatar, drag, context menu, bubble, conversations
 - Voice in/out with the full lip-sync engine and the lip-sync lab
 - Multi-provider LLM (Anthropic, OpenAI-compatible incl. OpenRouter/Ollama)
 - Plugin kernel with live feature toggles
 - Read-only desktop tools with the permission engine and audit log
-- Unsigned dev builds for one OS, a README with demo video, and the latency table
+- A `.deb` for Ubuntu 24.04/26.04, a README with demo video, and the latency table
 
 It is released as a GitHub pre-release. The README roadmap shows Phases 4b–7 and the extension as
 "next", which is honest and shows direction. Phase 7's README/demo tasks are pulled forward into
@@ -47,25 +47,30 @@ Tasks
 - [ ] Monorepo skeleton (01 §6): `core/` uv project on Python 3.14, `apps/desktop` Tauri 2 + React +
       Vite, `packages/avatar`, `packages/protocol`, pnpm workspace, Git LFS for `*.vrm *.vrma`.
 - [ ] Lint, format and type-check configs; `pytest` + `vitest` running on an empty test; GitHub
-      Actions matrix (ubuntu, windows, macos).
+      Actions on `ubuntu-24.04` + an `ubuntu:26.04` container job.
 - [ ] `docs/adr/0001…` for each decision in the README table.
-- [ ] **Spike A (shell):** transparent, frameless, always-on-top Tauri window rendering a VRM with
-      three-vrm at 60 fps; drag; Rust cursor-poll click-through. On every target OS.
-      *Gate:* if it fails on an OS, decide: drop that OS for v1, or switch to Electron.
+- [ ] **Spike A (shell), built twice: Tauri and Electron** (02 §1.3). A transparent, frameless,
+      always-on-top window through XWayland rendering a VRM with three-vrm; drag; input-region
+      click-through; WebAudio playback. Run on Ubuntu 24.04 and 26.04 (default Wayland session), on an
+      Intel/AMD iGPU and on NVIDIA. *Gate:* the measured criteria in 02 §1.3 decide Tauri vs Electron.
 - [ ] **Spike B (lip sync):** Kokoro synthesises 5 sentences; confirm what alignment it really gives
       (phonemes? durations? word timestamps?); hand-build a viseme track; play it on the VRM.
       *Gate:* it looks convincing, or we choose the Tier B/C path for v1.
-- [ ] **Spike C (deps):** install faster-whisper, kokoro/onnxruntime, silero-vad, mcp, keyring,
-      pynput, mss on Python 3.14 for all target OSes. *Gate:* all have wheels; otherwise pin 3.13 and
+- [ ] **Spike C (deps):** install faster-whisper, kokoro-onnx/onnxruntime, silero-vad, mcp, keyring,
+      sounddevice, a D-Bus client (`jeepney`/`dbus-fast`) and PyGObject (AT-SPI) on uv-managed
+      Python 3.14 on Ubuntu 24.04 and 26.04. *Gate:* all have wheels; otherwise pin 3.13 and
       write an ADR.
-- [ ] Spike A also checks the platform traps in 02 §1 (mic in webview + echo cancellation, autoplay,
-      Wayland/X11, HiDPI) and the exclude-from-capture API.
+- [ ] **Spike D (Ubuntu desktop integration):** each "to verify" item in 02 §1.2 plus PipeWire
+      echo-cancel in monitor mode (02 §1.4): always-on-top/drag under Mutter, Screenshot and
+      RemoteDesktop portal grants being remembered, AT-SPI coverage, GNOME custom-shortcut → CLI
+      action, clipboard from the avatar window, 100/150/200% scaling. Record results in an ADR.
 - [ ] Spike C also records model sizes, RAM with models loaded, and cold-start time.
 - [ ] Create the default avatar in VRoid Studio (vrm-basic mouth first; extended visemes can come
       later, see 03 §1); record asset licences in `assets/LICENSES.md`.
-- [ ] Decide the answers to the README's open questions (target OSes, Claude path, Hinglish).
+- [ ] Decide the answers to the README's remaining open questions (Claude path, extension pairing,
+      resume).
 
-**Exit:** CI green on 3 OSes; spikes answered and written up in ADRs; default `.vrm` committed.
+**Exit:** CI green (24.04 + 26.04); spikes answered and written up in ADRs; default `.vrm` committed.
 
 ---
 
@@ -126,8 +131,9 @@ while the avatar looks thoughtful. Dragging, the menu and Exit all work. It surv
 **Goal:** talk to it and it talks back, with lip sync that holds up close.
 
 3a — Voice loop
-- [ ] Mic AudioWorklet (16 kHz, 20 ms frames, pre-roll ring buffer), echo cancellation on;
-      macOS/Windows mic permission flow; AudioContext unlock on first gesture.
+- [ ] `audio.input.pipewire` mic plugin (16 kHz, 20 ms frames, pre-roll ring buffer, source
+      selection); PipeWire echo-cancel drop-in with consent (02 §1.4); AudioContext unlock on first
+      gesture.
 - [ ] First-use model downloads with pinned hashes, progress UI and offline behaviour (08 §6);
       lazy load / idle unload of local models.
 - [ ] Silero VAD; turn TaskGroup with bounded queues; segmenter with tag extraction.
@@ -163,8 +169,8 @@ Tasks
 - [ ] 4a read tools → 4b act tools → 4c `shell.exec`. Taint escalation for untrusted content.
 - [ ] Vision: screenshot → vision model (role `vision` or `main` if capable).
 - [ ] Kill switch: menu → Stop and the **global Stop hotkey** (moved here from Phase 6).
-- [ ] OS permission onboarding for Screen Recording / Accessibility with status and deep links
-      (02 §1); exclude the avatar from our own screenshots.
+- [ ] Portal grant flows (Screenshot, later RemoteDesktop) and GNOME custom-shortcut setup, with
+      status in Configure (02 §1.5); the avatar hides itself during our own screenshots.
 - [ ] Privacy panel "what leaves the machine" + first-screenshot consent (05 §6).
 - [ ] Trust warnings for MCP servers and imported skills (06 §6); sensitive-app blocklist for
       computer use.
@@ -188,7 +194,7 @@ Tasks
 - [ ] Experimental `claude_code` AgentBackend (05 §3), off by default, with our tools via an
       in-process MCP server and our permission callback, **Claude Code's built-in tools disabled**
       (contract test).
-- [ ] MCP runtime prerequisite checks (node/uv on PATH, login-shell PATH on macOS) and timeouts.
+- [ ] MCP runtime prerequisite checks (node/uv on PATH, login-shell PATH resolution) and timeouts.
 - [ ] Fully offline configuration tested end to end (faster-whisper + Kokoro + Ollama).
 
 **Exit:** paste a Claude Desktop MCP config and its tools work with permissions; write a skill in the
@@ -206,7 +212,7 @@ Tasks
 - [ ] Tray icon, push-to-talk hotkey, "hide for 30 min", multi-monitor edge cases, reduced motion,
       battery-friendly frame caps.
 - [ ] Error UX: every failure has a visible, human message on the avatar and a detail in the logs.
-- [ ] Launch at login toggle; "hide avatar in screen shares" toggle; avatar scale.
+- [ ] Launch at login toggle; "hide for 30 min" menu item; avatar scale.
 - [ ] Settings export/import; diagnostics bundle (logs + config without secrets + plugin statuses)
       for bug reports.
 
@@ -218,9 +224,12 @@ available for power users).
 ## Phase 7: Ship it as a portfolio project
 
 Tasks
-- [ ] Package the core with PyInstaller (or Nuitka) as a Tauri sidecar per OS. Tauri bundles: `.msi`,
-      `.dmg`, `.AppImage`/`.deb` (per the OS decision). Note code signing (unsigned builds need a
-      README warning).
+- [ ] Package the core with PyInstaller (or Nuitka) as a sidecar, built on Ubuntu 24.04 for glibc
+      compatibility. The primary artefact is a **`.deb`** for Ubuntu 24.04 and 26.04, with declared
+      dependencies (webkit2gtk-4.1 and the GStreamer plugins on the Tauri path, `espeak-ng`,
+      `libayatana-appindicator`). AppImage is optional; note that its runtime forces `GDK_BACKEND=x11`,
+      which we want anyway. The `.deb` also installs the `.desktop` file and icon. We could add a signed
+      APT repo later.
 - [ ] GitHub Release workflow on tags; optional Tauri updater.
 - [ ] README: 60-second demo video/GIF, feature list, architecture diagram, "how lip sync works"
       section with the lab timeline, latency table, permissions model, "add a provider in 150 lines"
@@ -232,7 +241,7 @@ Tasks
       licence and source pointer; asset licences.
 - [ ] Measure and publish: installer size, idle RAM/CPU, RAM with local models, cold start, latency
       p50/p95.
-- [ ] Smoke test on clean VMs/machines for each target OS: install → onboard → voice turn → tool
+- [ ] Smoke test on clean Ubuntu 24.04 and 26.04 installs (a VM + one real machine with NVIDIA): install → onboard → voice turn → tool
       with approval → uninstall leaves no core process behind.
 
 **Exit:** a tagged `v1.0.0` release with installers; README a recruiter can understand in 2 minutes.
@@ -242,11 +251,13 @@ Tasks
 ## After v1 (kept visible in the README roadmap)
 
 1. **Browser extension** (see 10).
-2. Avatar inventory: item packages, then publish/share.
-3. Wake word, multiple personas, long-term memory (summaries in SQLite + retrieval).
-4. MCP resources/prompts, remote MCP OAuth.
-5. Speech-to-speech realtime pipeline plugin.
-6. Free-threaded Python build once all native deps support it.
+2. More platforms: native Wayland (dropping XWayland once GNOME offers what we need), other
+   distros/desktops (KDE supports layer-shell), then macOS and Windows behind the same interfaces.
+3. Avatar inventory: item packages, then publish/share.
+4. Wake word, multiple personas, long-term memory (summaries in SQLite + retrieval).
+5. MCP resources/prompts, remote MCP OAuth.
+6. Speech-to-speech realtime pipeline plugin.
+7. Free-threaded Python build once all native deps support it.
 
 ---
 
@@ -262,7 +273,7 @@ Tasks
 | Protocol | Schema drift check; round-trip (Python → JSON → TS types) |
 | UI | Component tests for bubble/menu logic; manual demo checklist per phase (no heavy e2e in v1) |
 | End to end | `--demo` mode with fake providers: a scripted run core ↔ headless avatar surface in CI (text + performance messages asserted) |
-| Platform | Manual checklist per OS per release (02 §1 traps, OS permissions, multi-monitor) |
+| Platform | Manual checklist on Ubuntu 24.04 + 26.04 per release (02 §1.2 items, portal grants, multi-monitor, NVIDIA) |
 
 ## Working agreement
 
