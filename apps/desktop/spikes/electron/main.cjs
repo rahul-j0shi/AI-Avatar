@@ -7,6 +7,7 @@ const HEIGHT = 640;
 const MAX_REGIONS = 16;
 
 app.commandLine.appendSwitch("ozone-platform", "x11");
+app.setPath("userData", path.join(app.getPath("temp"), "svara-electron-spike"));
 
 const normalizeRegions = (regions) => {
   if (!Array.isArray(regions) || regions.length > MAX_REGIONS) {
@@ -27,6 +28,7 @@ const normalizeRegions = (regions) => {
 
 const createWindow = async () => {
   const window = new BrowserWindow({
+    title: "Svara Electron shell spike",
     width: WIDTH,
     height: HEIGHT,
     minWidth: WIDTH,

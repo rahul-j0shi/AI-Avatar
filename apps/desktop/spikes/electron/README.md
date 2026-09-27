@@ -16,3 +16,6 @@ Electron uses a transparent, frameless, always-on-top, skip-taskbar `BrowserWind
 `BrowserWindow.setShape()` limits drawing and input to the avatar and diagnostic-panel rectangles,
 and CSS `-webkit-app-region: drag` provides native dragging from the avatar. The preload bridge is
 context-isolated and exposes only shape updates and structured measurement logging.
+
+The completed X11 measurements and remaining platform-coverage limitations are recorded in
+`docs/spikes/T0.6-electron.md`.

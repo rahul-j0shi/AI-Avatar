@@ -5,10 +5,15 @@ repo_dir=$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)
 desktop_dir="$repo_dir/apps/desktop"
 
 corepack pnpm --dir "$desktop_dir" build
-corepack pnpm --dir "$desktop_dir" exec vite preview \
+setsid corepack pnpm --dir "$desktop_dir" exec vite preview \
   --host 0.0.0.0 --port 1420 --strictPort &
 preview_pid=$!
-trap 'kill "$preview_pid" 2>/dev/null || true' EXIT INT TERM
+
+cleanup() {
+  kill -- "-$preview_pid" 2>/dev/null || true
+  wait "$preview_pid" 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
 
 for _ in $(seq 1 40); do
   if curl --silent --fail http://127.0.0.1:1420 >/dev/null; then

@@ -209,7 +209,7 @@ export function SpikeApp() {
     );
     const link = document.createElement("a");
     link.href = url;
-    link.download = `svara-tauri-spike-${new Date().toISOString()}.json`;
+    link.download = `svara-${shellKind()}-spike-${new Date().toISOString()}.json`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -240,7 +240,7 @@ export function SpikeApp() {
       <section className="controls" data-input-region>
         <header>
           <div>
-            <p className="eyebrow">SPIKE A · TAURI</p>
+            <p className="eyebrow">SPIKE A · {shellKind().toUpperCase()}</p>
             <h1>Svara shell probe</h1>
           </div>
           <span className="shell-pill">{shellStatus}</span>
