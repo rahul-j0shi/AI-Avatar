@@ -269,8 +269,8 @@ The repo is **Apache-2.0**, and no GPL code is loaded into our process:
 
 - **Model:** the **timestamped** Kokoro v1.0 ONNX export
   (`onnx-community/Kokoro-82M-v1.0-ONNX-timestamped`, fp16, ~163 MiB, Apache-2.0). Unlike the plain
-  export, it also outputs **`pred_dur`**, the predicted duration of every phoneme token in decoder
-  frames. That is **Tier A timing** for free.
+  export, it exposes the graph's predicted per-token duration as the **`durations`** output (the
+  internal `pred_dur`) in decoder frames. That is **Tier A timing** for free.
 - **Runner (`providers/tts/kokoro.py`, ~150 lines):**
   1. espeak-ng IPA for the sentence.
   2. Map IPA symbols to Kokoro token ids with the model's `vocab` (from its `config.json`).
@@ -279,8 +279,9 @@ The repo is **Apache-2.0**, and no GPL code is loaded into our process:
   4. Return 24 kHz audio plus `(phoneme, start_ms, end_ms)` from `pred_dur` × frame hop.
 - **Why not `kokoro-onnx` or `kokoro`:** Python < 3.14 pin and in-process GPL (§4.7), or PyTorch
   (gigabytes).
-- **Spike B** confirms the frame-hop constant and the timing accuracy against the audio, using the
-  lab's envelope comparison.
+- **Spike B (T0.8) confirmed** a 600-sample / 25 ms frame hop exactly on five real waveforms. Raw
+  envelope-onset error was 40 ms mean / 70 ms max; the renderer's 35 ms anticipatory attack reduced
+  visible error to 25 ms mean / 35 ms max. See `docs/spikes/T0.8-kokoro-lipsync.md`.
 
 ## 5. Renderer playback (`packages/avatar`)
 

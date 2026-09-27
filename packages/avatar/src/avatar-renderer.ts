@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { FrameProbe, type RenderMeasurement } from "./metrics";
+import { PerformancePlayer, type PerformanceTrack, type Viseme } from "./performance-player";
 
 export type AvatarMode = "idle" | "speaking";
 
@@ -24,6 +25,7 @@ export class AvatarRenderer {
   readonly #fallbackRoot = new THREE.Group();
   readonly #loader = new GLTFLoader();
   readonly #options: AvatarRendererOptions;
+  readonly #performancePlayer = new PerformancePlayer();
   readonly #renderer: THREE.WebGLRenderer;
   readonly #resizeObserver: ResizeObserver;
   readonly #scene = new THREE.Scene();
@@ -73,6 +75,7 @@ export class AvatarRenderer {
     cancelAnimationFrame(this.#animationFrame);
     this.#resizeObserver.disconnect();
     this.#finishProbe();
+    this.#performancePlayer.stop();
     this.#vrm?.scene.removeFromParent();
     this.#renderer.dispose();
   }
@@ -115,6 +118,11 @@ export class AvatarRenderer {
     });
   }
 
+  playPerformance(track: PerformanceTrack, startAtMs: number): void {
+    this.setMode("speaking");
+    this.#performancePlayer.play(track, startAtMs);
+  }
+
   resize(): void {
     const canvas = this.#renderer.domElement;
     const width = Math.max(1, canvas.clientWidth);
@@ -130,6 +138,9 @@ export class AvatarRenderer {
     }
 
     this.#finishProbe();
+    if (mode !== "speaking") {
+      this.#performancePlayer.stop();
+    }
     this.#mode = mode;
     this.#lastRenderedAt = 0;
   }
@@ -203,12 +214,32 @@ export class AvatarRenderer {
 
     const delta = this.#lastRenderedAt === 0 ? 0 : (timestamp - this.#lastRenderedAt) / 1_000;
     const elapsed = timestamp / 1_000;
-    const mouthWeight = this.#mode === "speaking" ? (Math.sin(elapsed * 17) + 1) / 2 : 0;
+    const faceFrame = this.#performancePlayer.update(timestamp);
+    const hasPerformance = !faceFrame.ended;
+    const mouthWeight = hasPerformance
+      ? faceFrame.jaw
+      : this.#mode === "speaking"
+        ? (Math.sin(elapsed * 17) + 1) / 2
+        : 0;
     this.#fallbackMouth.scale.y = 0.28 + mouthWeight * 1.7;
     this.#fallbackRoot.rotation.y = Math.sin(elapsed * 0.8) * 0.06;
 
     if (this.#vrm) {
-      this.#vrm.expressionManager?.setValue(VRMExpressionPresetName.Aa, mouthWeight * 0.8);
+      const expressions = this.#vrm.expressionManager;
+      if (hasPerformance) {
+        const weights = this.#retargetBasic(faceFrame.weights);
+        expressions?.setValue(VRMExpressionPresetName.Aa, weights.aa);
+        expressions?.setValue(VRMExpressionPresetName.Ee, weights.ee);
+        expressions?.setValue(VRMExpressionPresetName.Ih, weights.ih);
+        expressions?.setValue(VRMExpressionPresetName.Oh, weights.oh);
+        expressions?.setValue(VRMExpressionPresetName.Ou, weights.ou);
+      } else {
+        expressions?.setValue(VRMExpressionPresetName.Aa, mouthWeight * 0.8);
+        expressions?.setValue(VRMExpressionPresetName.Ee, 0);
+        expressions?.setValue(VRMExpressionPresetName.Ih, 0);
+        expressions?.setValue(VRMExpressionPresetName.Oh, 0);
+        expressions?.setValue(VRMExpressionPresetName.Ou, 0);
+      }
       const head = this.#vrm.humanoid?.getNormalizedBoneNode("head");
       if (head) {
         head.rotation.y = Math.sin(elapsed * 0.8) * 0.08;
@@ -220,4 +251,16 @@ export class AvatarRenderer {
     this.#lastRenderedAt = timestamp;
     this.#activeProbe?.probe.record(timestamp);
   };
+
+  #retargetBasic(
+    weights: Record<Viseme, number>,
+  ): Record<"aa" | "ee" | "ih" | "oh" | "ou", number> {
+    return {
+      aa: Math.max(weights.aa, weights.DD * 0.1, weights.kk * 0.3),
+      ee: weights.E,
+      ih: Math.max(weights.I, weights.FF * 0.2, weights.CH * 0.3, weights.SS * 0.4),
+      oh: Math.max(weights.O, weights.RR * 0.2),
+      ou: weights.U,
+    };
+  }
 }

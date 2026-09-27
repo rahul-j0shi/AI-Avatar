@@ -1,4 +1,9 @@
-import { type AvatarMode, AvatarRenderer, type RenderMeasurement } from "@svara/avatar";
+import {
+  type AvatarMode,
+  AvatarRenderer,
+  type PerformanceTrack,
+  type RenderMeasurement,
+} from "@svara/avatar";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface InputRegion {
@@ -14,6 +19,13 @@ interface SpikeReport {
   speaking?: RenderMeasurement;
   userAgent: string;
   webAudio: "not-tested" | "passed" | "failed";
+}
+
+interface KokoroSample {
+  audioUrl: string;
+  sampleRate: number;
+  text: string;
+  track: PerformanceTrack;
 }
 
 declare global {
@@ -64,6 +76,7 @@ export function SpikeApp() {
   const rendererRef = useRef<AvatarRenderer | null>(null);
   const objectUrlRef = useRef<string | undefined>(undefined);
   const [mode, setModeState] = useState<AvatarMode>("idle");
+  const [kokoroSample, setKokoroSample] = useState<KokoroSample | null>(null);
   const [modelStatus, setModelStatus] = useState(
     "Procedural stand-in (load a VRM for the real test)",
   );
@@ -134,6 +147,20 @@ export function SpikeApp() {
     };
   }, [updateInputRegions]);
 
+  useEffect(() => {
+    void fetch("/spike-assets/kokoro/sample.json")
+      .then(async (response) => {
+        if (!response.ok || response.headers.get("content-type")?.includes("text/html")) {
+          return;
+        }
+        setKokoroSample((await response.json()) as KokoroSample);
+        window.setTimeout(() => void updateInputRegions(), 0);
+      })
+      .catch(() => {
+        // The generated T0.8 sample is optional outside the lip-sync spike.
+      });
+  }, [updateInputRegions]);
+
   const setMode = (nextMode: AvatarMode) => {
     rendererRef.current?.setMode(nextMode);
     setModeState(nextMode);
@@ -194,6 +221,41 @@ export function SpikeApp() {
       setReport((current) => ({ ...current, webAudio: "passed" }));
     } catch {
       setReport((current) => ({ ...current, webAudio: "failed" }));
+    }
+  };
+
+  const playKokoro = async () => {
+    const renderer = rendererRef.current;
+    if (!renderer || !kokoroSample) {
+      return;
+    }
+    try {
+      const context = new AudioContext();
+      await context.resume();
+      const response = await fetch(kokoroSample.audioUrl);
+      const audio = await context.decodeAudioData(await response.arrayBuffer());
+      const source = context.createBufferSource();
+      source.buffer = audio;
+      source.connect(context.destination);
+      const delaySeconds = 0.08;
+      renderer.playPerformance(kokoroSample.track, performance.now() + delaySeconds * 1_000);
+      setModeState("speaking");
+      source.addEventListener("ended", () => {
+        setMode("idle");
+        void context.close();
+      });
+      source.start(context.currentTime + delaySeconds);
+      await invokeShell("record_event", {
+        details: {
+          durationMs: kokoroSample.track.durationMs,
+          sampleRate: kokoroSample.sampleRate,
+          text: kokoroSample.text,
+          visemeKeys: kokoroSample.track.visemes.length,
+        },
+        name: "kokoro-performance",
+      });
+    } catch (error) {
+      setModelStatus(`Kokoro playback failed: ${String(error)}`);
     }
   };
 
@@ -259,6 +321,12 @@ export function SpikeApp() {
             {running === "speaking" ? "Measuring 10s…" : "Measure speaking · 60 fps"}
           </button>
         </div>
+
+        {kokoroSample ? (
+          <button className="download" onClick={() => void playKokoro()} type="button">
+            Play timestamped Kokoro track
+          </button>
+        ) : null}
 
         <pre aria-live="polite">{JSON.stringify(report, null, 2)}</pre>
         <button className="download" onClick={downloadReport} type="button">

@@ -22,6 +22,9 @@ Consequences:
 - `espeak-ng` becomes a declared system dependency of the `.deb`.
 
 Evidence:
-- T0.8 validates the runner, timing extraction, and generated viseme track before the full adapter is
-  built.
+- [T0.8](../spikes/T0.8-kokoro-lipsync.md) confirmed the exported `durations` tensor is the model's
+  per-token duration signal: rounded durations × 600 samples exactly matched all five generated
+  waveforms. The 35 ms renderer attack kept visible envelope-onset error to 35 ms or less.
+- T0.8 also verified real WebAudio/VRM playback from the generated 24 kHz waveform, 10 ms envelope,
+  and 15-viseme track without loading GPL code into Python.
 - T0.9 verifies the locked ONNX runtime and model smoke call on Python 3.14.

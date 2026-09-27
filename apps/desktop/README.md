@@ -10,4 +10,5 @@ selected shell foundation; its current launcher still runs the development-only 
 The page currently under `src` is a **development-only shell benchmark**. Its panel, buttons, status
 text and measurements are instrumentation, not the product design. The production desktop contract
 is avatar-only while idle; it is specified in `docs/revamp/02-desktop-shell-and-ui.md` §2–3 and must
-not import or expose this spike UI.
+not import or expose this spike UI. When T0.8's ignored output exists, the probe also exposes one
+timestamped Kokoro audio/viseme playback button for local lip-sync verification.
