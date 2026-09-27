@@ -25,8 +25,8 @@ the features and acceptance criteria (AC) from 12 that it must satisfy.
 
 ## 2. Verified toolchain & dependency baseline (checked on PyPI/npm, Sep 2026)
 
-Versions are the current releases at planning time. Phase 0 locks exact versions in `uv.lock`,
-`pnpm-lock.yaml` and `Cargo.lock`, and upgrades are deliberate PRs.
+Versions are the current releases at planning time. Phase 0 locks exact versions in `uv.lock` and
+`pnpm-lock.yaml`, and upgrades are deliberate PRs.
 
 ### 2.1 Toolchain
 
@@ -34,11 +34,9 @@ Versions are the current releases at planning time. Phase 0 locks exact versions
 |------|-------------|-------|
 | Python | **3.14** (uv-managed, standard GIL build) | Every chosen package below has Linux x86-64 wheels for 3.14 |
 | uv | 0.12.x | Environments, lockfile, Python install |
-| Node.js | **24 LTS** | For the frontend build only; not shipped (except inside Electron if Spike A picks it) |
+| Node.js | **24 LTS** | Frontend build tooling; Electron ships its own Node runtime |
 | pnpm | 12.x | Workspace |
-| Rust | stable | Tauri path only |
-| Tauri CLI / crates | 2.11.x | With `tauri-plugin-single-instance` and `tauri-plugin-autostart` |
-| Electron | 44.x | Only if Spike A picks it |
+| Electron | 44.x | Selected desktop shell; exact version locked |
 | ruff 0.16.x · pyright 1.1.41x · pytest + pytest-asyncio + hypothesis 6.x | — | Python quality |
 | biome 2.5.x · vitest 5.x · TypeScript 5.x | — | TS quality |
 
@@ -68,9 +66,8 @@ Versions are the current releases at planning time. Phase 0 locks exact versions
 `sounddevice` (can't target PipeWire nodes; allowed only as a documented fallback if Spike D requires
 it), `mss`/`pynput`/`pyautogui` (don't work on Wayland), `langgraph`, `torch`.
 
-**System packages** (`.deb` Depends): `espeak-ng`, `pipewire-bin` (for `pw-record`), `xdg-utils`,
-`libglib2.0-bin` (for `gio`), `libayatana-appindicator3-1`, plus `libwebkit2gtk-4.1-0` and
-`gstreamer1.0-plugins-base|good` on the Tauri path.
+**System packages** (`.deb` Depends): `espeak-ng`, `pipewire-bin` (for `pw-record`), `xdg-utils`, and
+`libglib2.0-bin` (for `gio`). Electron/Chromium is bundled; there is no WebKitGTK/GStreamer runtime.
 
 ### 2.3 Frontend dependencies (the complete list for v1)
 
@@ -84,7 +81,7 @@ it), `mss`/`pynput`/`pyautogui` (don't work on Wayland), `langgraph`, `torch`.
 | `monaco-editor` | 0.57.x | Config editors with JSON Schema |
 | `jsonc-parser` | 3.3.x | Comment-preserving edits |
 | `json-schema-to-typescript` (dev) | 16.x | Protocol type generation |
-| `@tauri-apps/api` + plugins | 2.x | Tauri path only |
+| `electron` (dev/runtime packaging) | 44.x | Desktop main process and preload bridge |
 
 **Rejected:** UI kits, Redux, react-three-fiber (the renderer stays framework-agnostic in
 `packages/avatar`), CSS frameworks (use plain CSS modules).
@@ -102,9 +99,9 @@ svara/
 ├── apps/desktop/
 │   ├── package.json              # the web UI
 │   ├── src/                      # React (02 §7)
-│   └── src-tauri/ | electron/    # decided by T0.7
+│   └── electron/                 # selected main process + preload bridge
 ├── apps/extension/README.md      # the "next" pointer (10)
-├── packages/avatar/              # @svara/avatar; no React/Tauri imports (lint-enforced)
+├── packages/avatar/              # @svara/avatar; no React/Electron imports (lint-enforced)
 ├── packages/protocol/            # @svara/protocol; generated types (committed; drift-checked)
 ├── assets/                       # default VRM, VRMA, LICENSES.md (Git LFS: *.vrm *.vrma)
 ├── docs/revamp/ · docs/adr/
@@ -117,7 +114,7 @@ svara/
 | Command | Does |
 |---------|------|
 | `setup` | `uv sync` in `core/`, `pnpm install` |
-| `lint` | ruff check + ruff format --check + pyright + biome check + (cargo fmt --check, clippy) |
+| `lint` | ruff check + ruff format --check + pyright + biome check + TypeScript type-check |
 | `test` | pytest (unit, contract, golden) + vitest |
 | `gen` | Export protocol/config JSON Schemas and regenerate `packages/protocol` |
 | `dev` | Run the core and the desktop app in dev mode |
@@ -147,7 +144,7 @@ running the core test suite in an `ubuntu:26.04` container. No GPU and no GUI te
 **TypeScript**
 - `strict: true`; no `any` except at the WS boundary, where it is validated against the generated
   types.
-- `packages/avatar` is pure TS + three; the lint rule forbids imports of `react` and `@tauri-apps/*`
+- `packages/avatar` is pure TS + three; the lint rule forbids imports of `react` and `electron`
   there.
 
 **Tests**
@@ -176,7 +173,7 @@ T0.4, and the rest by the spikes.
 | 0003 | Two processes: Python core + web shell; the core owns all logic (01 §1) | Accepted |
 | 0004 | In-house plugin kernel with Cordis semantics (01 §2) | Accepted |
 | 0005 | Python 3.14 standard build, asyncio, executor for inference (01 §5) | Accepted |
-| 0006 | Shell: Tauri 2 vs Electron | **Proposed → decided by Spike A (T0.7)** |
+| 0006 | Shell: Electron, selected by the Tauri/Electron measurements | Accepted |
 | 0007 | VRM 1.0 + three.js/three-vrm; CC0 VRoid preset default (03 §1) | Accepted |
 | 0008 | Performance engine: IPA → 15 visemes, timing tiers, keyframes + envelope (03) | Accepted |
 | 0009 | Kokoro own runner on the timestamped ONNX; espeak-ng subprocess; no in-process GPL (03 §4.7–4.8) | Accepted (Spike B confirms timing) |

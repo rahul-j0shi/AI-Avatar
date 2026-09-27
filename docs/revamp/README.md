@@ -37,7 +37,7 @@ later drive a browser extension; that is planned for, not built.
 | # | Document | What it decides |
 |---|----------|-----------------|
 | 01 | [Architecture](01-architecture.md) | Components, the plugin kernel (spatiotemporal composability), protocol, concurrency, repo layout |
-| 02 | [Desktop shell & UI](02-desktop-shell-and-ui.md) | Tauri, floating window, drag, context menu, bubble, conversations, config panel |
+| 02 | [Desktop shell & UI](02-desktop-shell-and-ui.md) | Electron, floating window, drag, context menu, bubble, conversations, config panel |
 | 03 | [Avatar, lip sync & expressions](03-avatar-and-lipsync.md) | VRM instead of Ready Player Me, phoneme → viseme engine, expressions, gestures, looks-as-code |
 | 04 | [Voice pipeline](04-voice-pipeline.md) | Mic capture, VAD, STT/TTS adapters, streaming turn orchestration, barge-in, latency budget |
 | 05 | [Models & accounts](05-models-and-accounts.md) | Provider adapters, the Claude-subscription question, secrets |
@@ -78,7 +78,7 @@ later drive a browser extension; that is planned for, not built.
 | Core language | Python **3.14** (standard build), `asyncio` + `TaskGroup`, `uv` | Python 3.7+ scripts |
 | Parallelism | asyncio for I/O; native inference in a thread pool (native code releases the GIL). Free-threaded `3.14t` stays an opt-in experiment | "use new Python for multithreading" |
 | Platform | **Ubuntu 24.04 LTS and 26.04 LTS only** (GNOME, default Wayland session; the avatar window runs through XWayland; portals for screenshots/input). Other OSes post-v1 | — |
-| Desktop shell | **Tauri 2** (Rust) or **Electron**, chosen by a measured Phase 0 spike on Ubuntu (WebKitGTK is Tauri's weak spot), + **React + TypeScript + Vite** | Streamlit, then vanilla HTML |
+| Desktop shell | **Electron 44 + React + TypeScript + Vite**, selected by the measured Phase 0 comparison in ADR-0006 | Streamlit, then vanilla HTML |
 | Language | Language-agnostic: replies in the user's input language; lip sync via IPA phonemes works for any language espeak-ng covers; developed and tested in English | Hinglish-only prompt |
 | 3D | **three.js + @pixiv/three-vrm**, **VRM 1.0** avatars | Ready Player Me (shut down 31 Jan 2026) + Babylon.js |
 | Lip sync | In-house performance engine: phonemes + timings → 15-viseme track + amplitude envelope → per-avatar retarget map | TalkingHead library |

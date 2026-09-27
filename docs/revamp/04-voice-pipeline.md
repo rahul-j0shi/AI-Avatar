@@ -4,7 +4,7 @@
 
 | Step | Where | Why |
 |------|-------|-----|
-| Mic capture | **Core** (`audio.input.pipewire` plugin: a `pw-record --target <node> --rate 16000 --channels 1 --format s16 -` subprocess read from stdout; `pw-record` ships with Ubuntu's PipeWire. `sounddevice` is only a fallback because it can't target a specific PipeWire node) | WebKitGTK's `getUserMedia` is fragile on Linux. PipeWire's echo-cancel module (monitor mode) cancels whatever the system plays, including our webview's playback, so barge-in works with speakers (02 §1.4). The future extension captures in the browser and streams frames over the protocol instead |
+| Mic capture | **Core** (`audio.input.pipewire` plugin: a `pw-record --target <node> --rate 16000 --channels 1 --format s16 -` subprocess read from stdout; `pw-record` ships with Ubuntu's PipeWire. `sounddevice` is only a fallback because it can't target a specific PipeWire node) | Native capture can select the exact PipeWire node and use the optional system echo-cancel source independently of Electron. Monitor mode cancels whatever the system plays, including the renderer's playback, so barge-in works with speakers (02 §1.4). The future extension captures in the browser and streams frames over the protocol instead |
 | VAD, STT, LLM, TTS, visemes | **Core** | All logic in one place; providers are adapters |
 | Playback | **Webview** (`AudioContext`) | Must share one clock with the face (see 03 §5) |
 

@@ -30,4 +30,4 @@ fi
 export ELECTRON_OZONE_PLATFORM_HINT=x11
 export SVARA_SPIKE_URL=http://127.0.0.1:1420
 corepack pnpm --dir "$desktop_dir" exec electron \
-  "$desktop_dir/spikes/electron/main.cjs"
+  "$desktop_dir/electron/main.cjs"

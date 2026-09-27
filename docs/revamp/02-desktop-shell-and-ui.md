@@ -25,19 +25,19 @@ explicit decision below.
 
 | Need | Decision on Ubuntu (GNOME Wayland) | To verify in Spike A |
 |------|-------------------------------------|----------------------|
-| **Position + always-on-top + drag** | The **avatar window runs through XWayland** (`GDK_BACKEND=x11` for the avatar process). Mutter honours EWMH hints for X11 clients (`_NET_WM_STATE_ABOVE`, move requests, `_NET_WM_MOVERESIZE` drag) | That Mutter 46 and 50 keep an XWayland window on top and at our position, and that drag works |
-| **Click-through on transparent areas** | Set a GTK **input shape region** (`gtk_widget_input_shape_combine_region`, which becomes an XShape input region) covering only the avatar silhouette box, the bubble and popovers. Clicks outside it pass through natively. **No cursor polling**, which wouldn't work anyway: under XWayland the global cursor position is stale while the pointer is over Wayland-native windows | That the input region updates cleanly when the bubble appears or disappears |
+| **Position + always-on-top + drag** | The **avatar window runs through XWayland** (Electron forces `--ozone-platform=x11`). Mutter honours EWMH hints for X11 clients (`_NET_WM_STATE_ABOVE`, move requests, native app-region drag) | That Mutter 46 and 50 keep an XWayland window on top and at our position, and that drag works |
+| **Click-through on transparent areas** | Apply Electron `BrowserWindow.setShape()` to the avatar silhouette box, bubble and popovers. Clicks outside the native shape pass through. **No cursor polling**, which wouldn't work anyway: under XWayland the global cursor position is stale while the pointer is over Wayland-native windows | That the shape updates cleanly when the bubble appears or disappears |
 | **Global hotkeys** (Show/Hide, Stop, push-to-talk) | Portable path for 24.04 *and* 26.04: register **GNOME custom keyboard shortcuts** (gsettings `custom-keybindings`) that run `svara --action toggle` / `--action stop` / `--action talk`. `toggle` and `talk` start Svara when it is not already running; otherwise the single-instance plugin forwards the action. Shortcuts are opt-in, rebindable and removable in Configure. The GlobalShortcuts portal (26.04) is a later improvement | Cold-start and running-instance behaviour; hotkey → action latency (< 200 ms after the app is ready) |
 | **Screenshots of other apps** | **xdg-desktop-portal Screenshot** (`interactive=false`) through D-Bus from the core. GNOME asks the user once and remembers the grant in its permission store. An XWayland app using `mss` would only see X11 windows | Whether GNOME 46 and 50 remember the grant, and the capture latency |
 | **Input control (computer use)** | **xdg-desktop-portal RemoteDesktop** (with ScreenCast for the screen), with `persist_mode` so the user consents once per grant. No `ydotool`/uinput (that needs root-level device access) | The consent flow and restore-token reuse on both releases |
 | **Window list / active app / focus** | **AT-SPI** accessibility bus, spoken over D-Bus with `dbus-fast` (no PyGObject: it has no wheels and is awkward to bundle), which works on Wayland for GTK/Qt/Chromium/Electron apps. "Focus app X" = re-launch its `.desktop` entry (`gio launch`); GNOME brings a running single-instance app to the front. Arbitrary window raising is not possible on Wayland and is documented as a limitation | Coverage of common apps (Firefox, Chrome, VS Code, Files, Terminal) |
 | **Clipboard** | Wayland only lets the **focused** client read the clipboard. `clipboard.read` works right after the user interacted with the avatar (it has focus). Otherwise the tool returns "copy the text, then click me" instead of failing silently. `clipboard.write` works | Read/write from the XWayland avatar window |
 | **Fractional scaling** | XWayland windows can look blurry at 125%/150% scaling. Supported, tested setups: 100% and 200%. Fractional is best-effort, and a known limitation in the README | Visual check at 100/150/200% |
-| **Tray icon** | Ubuntu enables the AppIndicator extension by default, so the Tauri tray (libayatana-appindicator) shows up | — |
-| **Launch at login** | `~/.config/autostart/svara.desktop` (`tauri-plugin-autostart`) | — |
+| **Tray icon** | Electron `Tray` + native `Menu`; Ubuntu's AppIndicator extension exposes it | — |
+| **Launch at login** | The Electron main process creates/removes `~/.config/autostart/svara.desktop` after explicit opt-in | — |
 | **Keeping the avatar out of screen shares** | Not possible on GNOME Wayland (there is no exclude-from-capture API). Our *own* screenshot tool hides the avatar for the capture frame instead. The README states that the avatar is visible in meetings, with a quick "Hide for 30 min" menu item | — |
 
-### 1.3 Shell choice: Tauri 2, with Electron decided by measurement
+### 1.3 Shell choice: Electron, accepted after measurement
 
 Linux-only changes the comparison. Tauri's small size stays, but its webview on Linux is
 **WebKitGTK**, which is Tauri's weakest platform. Under XWayland it can fall back to CPU-heavy
@@ -53,9 +53,8 @@ path on Linux is mature, at the cost of ~100+ MB and a Node runtime.
 | Python sidecar | Built in (`externalBin`) | Manual `child_process` |
 | Portfolio signal | Rust + modern | Common |
 
-**Decision:** build Spike A **twice** (Tauri and Electron, the same `packages/avatar`
-page in both) and choose by measurement on Ubuntu 24.04 and 26.04, on an Intel/AMD iGPU and on
-NVIDIA:
+**Spike method:** build Spike A **twice** (Tauri and Electron, the same `packages/avatar` page in
+both) and choose by measurement on Ubuntu 24.04 and 26.04, on an Intel/AMD iGPU and on NVIDIA:
 
 - **Measured on the primary dev machine: Ubuntu 24.04 + Intel/AMD (Mesa) graphics.** Ubuntu 26.04
   is checked functionally in a VM (GNOME 50, Wayland-only). VM graphics are not representative, so
@@ -64,27 +63,30 @@ NVIDIA:
 - The idle avatar stays under 5% CPU at 30 fps, and speaking holds 60 fps without dropped frames.
 - A transparent background with no black rectangle, click-through via input region, and
   always-on-top + drag under XWayland all work.
-- WebAudio playback works in the webview.
+- WebAudio playback works in the renderer.
 
-Prefer **Tauri** if it meets all of these, and pick **Electron** otherwise. Either way the web UI and
-`packages/avatar` are identical, and only the thin shell differs.
+The predeclared rule was to prefer **Tauri** only if it met every criterion and select **Electron**
+otherwise. T0.5 measured Tauri at 52.53 speaking fps with 66 drops; T0.6 measured Electron at 59.70
+fps with 2 drops. Both missed the absolute CPU/frame gate, so Tauri was ineligible and ADR-0006
+selected **Electron**. The high CPU remains an optimization requirement; it is not accepted as the
+production baseline. The web UI and `packages/avatar` remain independent of the thin shell.
 
 ### 1.4 Audio on Ubuntu
 
-- **Mic capture happens in the core, not the webview.** WebKitGTK's `getUserMedia` depends on
-  GStreamer plugins and its echo cancellation is uncertain. The core captures through **PipeWire**
-  with a `pw-record` subprocess targeting a chosen node (04 §1) and runs VAD right next to it. The
-  protocol still lets a surface stream mic audio (the browser extension will).
+- **Mic capture happens in the core, not Electron's renderer.** The core can target a named
+  **PipeWire** node consistently with a `pw-record` subprocess (04 §1), keep VAD beside capture, and
+  use the optional system echo-cancel source independently of Chromium permissions. The protocol
+  still lets a remote surface stream mic audio (the browser extension will).
 - **Echo cancellation for barge-in:** PipeWire's `libpipewire-module-echo-cancel` (the WebRTC
   engine) in **monitor mode** uses whatever the system is playing as the echo reference, so it
-  cancels our webview's playback without re-routing audio. Onboarding offers to install a drop-in
+  cancels our renderer's playback without re-routing audio. Onboarding offers to install a drop-in
   config (`~/.config/pipewire/pipewire.conf.d/60-svara-echo-cancel.conf`, which creates an
   `svara-ec-source`) and restarts the user's PipeWire service with consent. The core captures from
   that source when present. **Fallback:** barge-in only with headphones, or "duck and gate" (a
   higher VAD threshold while speaking).
-- **Playback** stays in the webview (WebAudio), because it must share the renderer's clock (03 §5).
-  The `.deb` depends on the GStreamer plugins WebKitGTK needs for audio. The Electron path doesn't
-  need them.
+- **Playback** stays in Electron's renderer (WebAudio), because it must share the avatar renderer's
+  clock (03 §5). Chromium's audio runtime ships with Electron; no WebKitGTK/GStreamer dependency is
+  required.
 - **Autoplay:** create and `resume()` the AudioContext on the first click or double-click on the
   avatar. The first turn is always started by a gesture.
 - **Mic permission:** none for native apps on Ubuntu. PipeWire/pulse access is open to the user's
@@ -147,7 +149,7 @@ request; they are never embedded beside the avatar.
   the avatar's screen-space box, the bubble and any popover whenever they change. The shell sets the
   window's **input shape region** to exactly those rectangles (§1.2), so clicks anywhere else go to the
   app underneath. During a drag, the region is the whole window.
-- **Right-click → native context menu** (Tauri `Menu::popup`, which looks native and needs no custom
+- **Right-click → native context menu** (Electron `Menu.popup()`, which looks native and needs no custom
   styling):
   - Talk (same as double-click)
   - Stop (visible only while busy: cancels the turn / computer-use loop)

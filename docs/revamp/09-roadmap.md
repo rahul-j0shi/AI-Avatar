@@ -37,7 +37,7 @@ Tasks
 - [ ] Tag the current state `v0-prototype`. Remove `main.py`, `speech_to_text.py`, `llm_call.py`,
       `talking-head/`, `backend/`, `frontend/`, `plan.md`, `ui_plan.md`, `ARCHITECTURE.md`,
       `.env.example*`, the root `requirements.txt` (history keeps them).
-- [ ] Monorepo skeleton (01 §6): `core/` uv project on Python 3.14, `apps/desktop` Tauri 2 + React +
+- [ ] Monorepo skeleton (01 §6): `core/` uv project on Python 3.14, `apps/desktop` Electron + React +
       Vite, `packages/avatar`, `packages/protocol`, pnpm workspace, Git LFS for `*.vrm *.vrma`.
 - [ ] Lint, format and type-check configs; `pytest` + `vitest` running on an empty test; GitHub
       Actions on `ubuntu-24.04` + an `ubuntu:26.04` container job.
@@ -111,7 +111,7 @@ OpenRouter ↔ Anthropic ↔ Ollama takes effect **without restart**; the kernel
 **Goal:** the avatar lives on your desktop and you can chat with it by typing.
 
 Tasks
-- [ ] Tauri: start the core as a sidecar in dev (`uv run`) with the lifecycle rules in 01 §3a
+- [ ] Electron: start the core as a child process in dev (`uv run`) with the lifecycle rules in 01 §3a
       (token via env, port via stdout, stdin-close exit, crash restart with backoff, single
       instance, graceful shutdown).
 - [ ] Protocol topics/routing, `snapshot` on connect, reconnect, `/assets` route (01 §4).
@@ -236,18 +236,18 @@ available for power users).
 Tasks
 - [ ] Package the core with PyInstaller (or Nuitka) as a sidecar, built on Ubuntu 24.04 for glibc
       compatibility. The primary artefact is a **`.deb`** for Ubuntu 24.04 and 26.04, with declared
-      dependencies (webkit2gtk-4.1 and the GStreamer plugins on the Tauri path, `espeak-ng`,
-      `libayatana-appindicator`). AppImage is optional; note that its runtime forces `GDK_BACKEND=x11`,
-      which we want anyway. The `.deb` also installs the `.desktop` file and icon. We could add a signed
-      APT repo later.
-- [ ] GitHub Release workflow on tags; optional Tauri updater.
+      dependencies (`espeak-ng`, `pipewire-bin`, `xdg-utils`, `libglib2.0-bin`). Electron and
+      Chromium ship inside the package. AppImage is optional; both formats force Electron's X11
+      Ozone backend. The `.deb` also installs the `.desktop` file and icon. We could add a signed APT
+      repo later.
+- [ ] GitHub Release workflow on tags; no automatic updater (ADR-0016).
 - [ ] README: 60-second demo video/GIF, feature list, architecture diagram, "how lip sync works"
       section with the lab timeline, latency table, permissions model, "add a provider in 150 lines"
       guide, roadmap (extension next).
 - [ ] Web demo page (optional): `packages/avatar` + a canned performance on GitHub Pages, so
       recruiters can see the avatar without installing anything.
 - [ ] Update the resume bullets to match what was actually built (decided; 13 T7.6).
-- [ ] Licence review: generated `THIRD_PARTY_NOTICES.md` for Python, JS and Rust deps; espeak-ng
+- [ ] Licence review: generated `THIRD_PARTY_NOTICES.md` for Python and JS deps; espeak-ng
       licence and source pointer; asset licences.
 - [ ] Measure and publish: installer size, idle RAM/CPU, RAM with local models, cold start, latency
       p50/p95.

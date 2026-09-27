@@ -22,7 +22,6 @@ dist/
 target/
 apps/desktop/.vite/
 apps/desktop/public/spike-assets/*.vrm
-apps/desktop/spikes/tauri/src-tauri/gen/
 packages/*/dist/
 
 # Local configuration and secrets

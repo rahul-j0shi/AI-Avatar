@@ -41,7 +41,7 @@
                 },
                 "patterns": [
                   {
-                    "group": ["@tauri-apps/*"],
+                    "group": ["electron", "electron/*"],
                     "message": "@svara/avatar must not depend on the desktop shell."
                   }
                 ]

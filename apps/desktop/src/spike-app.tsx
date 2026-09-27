@@ -1,5 +1,4 @@
 import { type AvatarMode, AvatarRenderer, type RenderMeasurement } from "@svara/avatar";
-import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface InputRegion {
@@ -24,20 +23,15 @@ declare global {
       recordEvent: (name: string, details: unknown) => Promise<void>;
       setInputRegions: (regions: InputRegion[]) => Promise<string>;
     };
-    __TAURI_INTERNALS__?: unknown;
   }
 }
 
-const isTauri = () => window.__TAURI_INTERNALS__ !== undefined;
-const shellKind = () => (isTauri() ? "tauri" : (window.svaraSpike?.kind ?? "browser"));
+const shellKind = () => window.svaraSpike?.kind ?? "browser";
 
 const invokeShell = async <T,>(
   command: string,
   args?: Record<string, unknown>,
 ): Promise<T | null> => {
-  if (isTauri()) {
-    return invoke<T>(command, args);
-  }
   const bridge = window.svaraSpike;
   if (!bridge) {
     return null;
@@ -80,7 +74,7 @@ export function SpikeApp() {
   });
   const [running, setRunning] = useState<AvatarMode | null>(null);
   const [shellStatus, setShellStatus] = useState(
-    isTauri() ? "Tauri IPC connected" : "Browser preview",
+    window.svaraSpike ? "Electron IPC connected" : "Browser preview",
   );
 
   const updateInputRegions = useCallback(async () => {
@@ -214,25 +208,9 @@ export function SpikeApp() {
     URL.revokeObjectURL(url);
   };
 
-  const startDrag = async (event: React.PointerEvent) => {
-    if (event.button !== 0 || !isTauri()) {
-      return;
-    }
-    try {
-      await invoke("start_drag");
-    } catch (error) {
-      setShellStatus(`Native drag failed: ${String(error)}`);
-    }
-  };
-
   return (
     <main className={`shell-${shellKind()}`}>
-      <section
-        aria-label="Draggable avatar"
-        className="avatar-hit-region"
-        data-input-region
-        onPointerDown={startDrag}
-      >
+      <section aria-label="Draggable avatar" className="avatar-hit-region" data-input-region>
         <canvas ref={canvasRef} />
         <div className={`status-orb ${mode}`} aria-label={`${mode} mode`} role="status" />
       </section>

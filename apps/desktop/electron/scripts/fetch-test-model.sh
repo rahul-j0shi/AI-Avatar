@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-desktop_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
+desktop_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 asset_dir="$desktop_dir/public/spike-assets"
 asset_path="$asset_dir/avatar.vrm"
 expected_sha256="12c2b97e95e700783a6a550dc0eee2d7880aeedccef9ae67bc4c5a2f0f2631a2"

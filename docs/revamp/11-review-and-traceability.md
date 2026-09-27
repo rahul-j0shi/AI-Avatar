@@ -11,7 +11,7 @@ remain open. Re-run this review at the end of every phase.
 | R1 | Better design patterns, codebase, data structures | 01 (kernel, ports/adapters), 08 §5 (data structures) | 0–1 | Covered |
 | R2 | No over-engineering | README principle 6; 01 §2.3 (mini kernel, not a framework); 06 §1 (no LangGraph); 03 §3 (whole-sentence segments) | all | Covered: see §4 for the "is this over-engineered?" check |
 | R3 | Latest Python, for multithreading | 01 §5 (3.14 standard; asyncio for I/O; free-threading optional, with reasons) | 0 | Covered, with the premise corrected |
-| R4 | Better, faster UI technology | 02 §1 (Tauri 2 + React/TS/Vite) | 0, 2 | Covered |
+| R4 | Better, faster UI technology | 02 §1 and ADR-0006 (Electron + React/TS/Vite, selected by measurement) | 0, 2 | Covered |
 | R5 | Desktop app now, browser extension next; desktop ops + browser automation | 06 §4 (desktop tools), 10 (extension) | 4, post-v1 | Covered |
 | R6 | Adapter pattern for the whole pipeline (LLM, STT, TTS) | 04 §4, 05 §1–2 | 1, 3, 5 | Covered |
 | R7 | Use the Claude subscription (Claude only for now) | 05 §3 | 1, 4 | **Decided:** subscription first through the official Agent SDK and your own Claude Code login; API key second |
@@ -100,7 +100,7 @@ remain open. Re-run this review at the end of every phase.
 | G42 | Cursor-poll click-through fails under XWayland (the cursor position is stale over Wayland windows) | High | 02 §1.2: input shape region, no polling |
 | G43 | `mss`/`pynput` can't see or control Wayland apps; window listing and focusing other apps are forbidden | High | 02 §1.2 and 06 §4: Screenshot/RemoteDesktop portals, AT-SPI, `gio launch` |
 | G44 | Global hotkeys: an XWayland app can't grab keys; the GlobalShortcuts portal is missing on 24.04 (GNOME 46) | High | 02 §1.2: GNOME custom shortcuts → `svara --action` CLI |
-| G45 | WebKitGTK risk (CPU painting under XWayland, NVIDIA blank windows) is much bigger when Linux is the *only* platform | High | 02 §1.3: Tauri vs Electron decided by measurement; NVIDIA env workaround |
+| G45 | WebKitGTK risk (CPU painting under XWayland, NVIDIA blank windows) is much bigger when Linux is the *only* platform | High | Resolved by 02 §1.3 / ADR-0006: Electron selected after Tauri failed the measured gate |
 | G46 | Clipboard reads need focus on Wayland; the core has no window | Medium | 06 §4: clipboard is a surface-provided tool |
 | G47 | Echo cancellation for barge-in on Linux | Medium | 02 §1.4: PipeWire echo-cancel in monitor mode |
 | G48 | Fractional scaling blurs XWayland windows | Low | 02 §1.2: 100%/200% supported, fractional best-effort |
@@ -146,7 +146,7 @@ remain open. Re-run this review at the end of every phase.
 
 | Risk | Likelihood | Impact | Mitigation / trigger |
 |------|-----------|--------|----------------------|
-| WebKitGTK rendering is too slow or glitchy on Ubuntu (esp. NVIDIA) | Medium–High | High | Spike A built for both shells; Electron chosen if Tauri misses the measured bar (02 §1.3) |
+| Electron's avatar renderer exceeds the idle CPU/RAM budgets measured in the diagnostic harness | High | High | Keep the avatar-only production surface lean; profile and gate it in Phase 2/3; measurements in T0.6 / ADR-0006 |
 | A future GNOME update changes XWayland always-on-top or positioning behaviour | Low–Medium | High | Spike D documents current behaviour; watch GNOME release notes; fallback: a small GNOME Shell extension that pins the window |
 | Portal consent is not remembered on one release (repeated dialogs) | Medium | Medium | Restore tokens / permission store; if it isn't remembered, screenshots and computer use stay opt-in with a clear explanation |
 | PipeWire echo-cancel drop-in conflicts with the user's audio setup | Low–Medium | Medium | Opt-in, one-click revert (remove the drop-in), headphones fallback |

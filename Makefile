@@ -3,13 +3,13 @@ PNPM ?= corepack pnpm
 
 PYTHON_PATHS := core/src core/tests
 
-.PHONY: setup lint lint-python lint-typescript lint-rust test test-python test-typescript gen dev demo
+.PHONY: setup lint lint-python lint-typescript test test-python test-typescript gen dev demo
 
 setup:
 	$(UV) sync --project core --locked
 	$(PNPM) install --frozen-lockfile
 
-lint: lint-python lint-typescript lint-rust
+lint: lint-python lint-typescript
 
 lint-python:
 	$(UV) run --project core ruff check $(PYTHON_PATHS)
@@ -18,14 +18,6 @@ lint-python:
 
 lint-typescript:
 	$(PNPM) lint
-
-lint-rust:
-	@if [ -f apps/desktop/src-tauri/Cargo.toml ]; then \
-		cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --check; \
-		cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings; \
-	else \
-		echo "Rust lint skipped: the desktop shell has not been selected yet."; \
-	fi
 
 test: test-python test-typescript
 

@@ -51,7 +51,7 @@ Paired mode comes first because it reuses 100% of the core.
 - The core owns all logic; surfaces are thin (01 §1).
 - Protocol has `hello.surface` and `input.audio.*` from day one, and `tools.register` / `tool.call` /
   `tool.result` are already exercised in v1 by the avatar surface's clipboard tools (01 §4).
-- `packages/avatar` has no React/Tauri dependencies (01 §6).
+- `packages/avatar` has no React/Electron dependencies (01 §6).
 - Permissions are capability strings, not hard-coded desktop concepts (06 §3).
 - `apps/extension/README.md` exists with a short version of this document and a link here.
 

@@ -143,7 +143,7 @@ The **exact tool list, arguments and limits are in 12 F25**; this section explai
 | `apps.*` | Installed apps from XDG `.desktop` entries; running and focused apps from **AT-SPI** |
 | `app.open` / `url.open` | `gio launch <desktop-file>` / `xdg-open` |
 | `notify` | `org.freedesktop.Notifications` over D-Bus |
-| `clipboard.*` | Executed **by the avatar surface** (Tauri/Electron clipboard API), registered with `tools.register` (01 §4). Only a focused client may read the Wayland clipboard, and the shell is that client. `clipboard.read` explains itself when it isn't focused |
+| `clipboard.*` | Executed **by the avatar surface** through Electron's clipboard API, registered with `tools.register` (01 §4). Only a focused client may read the Wayland clipboard, and the shell is that client. `clipboard.read` explains itself when it isn't focused |
 | `input.*` (4d) | xdg-desktop-portal **RemoteDesktop** (+ ScreenCast) with a restore token; no uinput/ydotool |
 | `shell.exec` | `asyncio.create_subprocess_exec` (argv, no shell), minimal env, timeout, output cap |
 

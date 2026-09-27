@@ -1,11 +1,11 @@
 # Svara Desktop
 
-The desktop surface will host the React UI and `@svara/avatar`. Tauri and Electron shells are both
-deferred to Spike A; the measured decision is recorded before either becomes the production shell.
+The desktop surface hosts the React UI and `@svara/avatar` inside Electron. ADR-0006 selected Electron
+after the measured Tauri and Electron spikes; production shell work begins in T2.1.
 
-The Tauri half of Spike A lives in `spikes/tauri`; its measured result is recorded in
-`docs/spikes/T0.5-tauri.md`. T0.6 reuses the page in `src` for the Electron half, with its completed
-measurements in `docs/spikes/T0.6-electron.md`. T0.7 owns the final shell decision.
+The retained measurement records are `docs/spikes/T0.5-tauri.md` and
+`docs/spikes/T0.6-electron.md`. The losing Tauri wrapper was removed in T0.7. `electron/` is the
+selected shell foundation; its current launcher still runs the development-only benchmark page.
 
 The page currently under `src` is a **development-only shell benchmark**. Its panel, buttons, status
 text and measurements are instrumentation, not the product design. The production desktop contract

@@ -5,11 +5,11 @@
 There are two processes and one protocol between them.
 
 ```
-┌──────────────────────────── Desktop shell (Tauri 2) ───────────────────────────┐
-│  Rust: windows, tray, context menu, input-region click-through, CLI actions     │
-│        starts/stops the core sidecar, hands the webviews a session token        │
+┌──────────────────────────── Desktop shell (Electron) ──────────────────────────┐
+│  Main process: windows, tray, context menu, shaped click-through, CLI actions   │
+│                starts/stops the core sidecar; narrow preload bridge             │
 │                                                                                 │
-│  Webviews (React + TS):                                                         │
+│  Renderer windows (React + TS):                                                 │
 │   • Avatar window   – three.js/VRM renderer, bubble, audio playback            │
 │   • Conversations   – history viewer                                            │
 │   • Configure       – settings panel (models, voice, looks, persona, skills,    │
@@ -28,11 +28,12 @@ There are two processes and one protocol between them.
 ```
 
 **Why two processes and not one.** The AI stack (local STT/TTS, MCP SDK, desktop automation
-libraries, provider SDKs) is strongest in Python. The best floating transparent UI is a webview.
+libraries, provider SDKs) is strongest in Python. The best floating transparent UI is a Chromium
+renderer.
 Doing the AI work in Rust or JS would mean re-implementing half the ecosystem. Keeping all the logic
 in the core also means a browser extension can reuse it later (see 10).
 
-**Why the core owns logic and the shell owns nothing smart.** The shell and webviews are *surfaces*.
+**Why the core owns logic and the shell owns nothing smart.** The shell and renderers are *surfaces*.
 They capture input (mic, text, clicks), render output (avatar, bubble, windows), and execute
 surface-specific tools. Every decision is made in the core. That rule is what keeps the browser
 extension cheap later.
@@ -177,14 +178,14 @@ the permission model.
 
 | Concern | Decision |
 |---------|----------|
-| Environment | The shell starts the avatar window through XWayland (`GDK_BACKEND=x11`, 02 §1.2) and applies the WebKitGTK/NVIDIA workaround env (`WEBKIT_DISABLE_DMABUF_RENDERER=1`) only when an NVIDIA proprietary driver is detected |
+| Environment | Electron forces the avatar window through XWayland with `--ozone-platform=x11` (02 §1.2) |
 | CLI actions | `svara --action talk \| stop \| show \| hide \| toggle \| mute-mic \| pause-voice \| configure \| quit` and `svara --volume 0..100`. `talk`, `show`, `toggle` and `configure` cold-start the app when needed; otherwise actions forward to the running instance. `stop`, `hide` and `quit` are harmless no-ops when it is not running. GNOME custom shortcuts call this contract (02 §1.2, §3.1) |
-| Start | The shell generates a random 256-bit token and spawns the core sidecar with it in an env var (`SVARA_TOKEN`). The core binds `127.0.0.1:0` and prints one JSON line `{"port": N, "pid": P, "protocol": 1}` on stdout. The shell reads it and gives port + token to its webviews through a Tauri command (`get_core_endpoint`), never in a URL |
+| Start | The Electron main process generates a random 256-bit token and spawns the core sidecar with it in an env var (`SVARA_TOKEN`). The core binds `127.0.0.1:0` and prints one JSON line `{"port": N, "pid": P, "protocol": 1}` on stdout. The main process reads it and gives port + token to approved renderer windows through the context-isolated preload bridge, never in a URL |
 | Readiness | The shell shows the avatar in a `booting` state until the core answers `hello`. Core startup target: under 1.5 s to `hello`. Heavy models load lazily (below) |
 | Orphans | The core exits when its stdin closes (the shell holds the pipe), so a crashed shell never leaves a zombie core |
 | Crash | If the core exits unexpectedly, the shell restarts it with backoff (1 s, 2 s, 5 s, then stop and show "Core stopped: View logs / Restart") |
-| Single instance | `tauri-plugin-single-instance`: launching the app again focuses the existing avatar |
-| Launch at login | `tauri-plugin-autostart`, off by default, toggle in Features |
+| Single instance | Electron `app.requestSingleInstanceLock()`; the second-instance payload is validated and forwarded as a CLI action |
+| Launch at login | Create/remove `~/.config/autostart/svara.desktop`, off by default, from the explicit Configure toggle |
 | Exit | Menu → Exit: the shell sends `shutdown`. The core cancels the current turn, flushes the event log, stops MCP servers (SIGTERM, then kill after 3 s) and exits. The shell waits up to 5 s, then kills it |
 | Sleep/wake | On resume from sleep, surfaces reconnect (below) and MCP HTTP servers are re-checked |
 
@@ -246,8 +247,10 @@ avatar surface was disconnected mid-turn, the core cancels the running performan
 resumed) but keeps the text and tool results, so nothing is lost from the conversation.
 
 **Hardening.** Bind to loopback only. Require the token as the first message (not a query string, so
-it never lands in logs). Check the `Origin` header (allow only the Tauri origins, later the extension
-host). Limit frame size to 1 MB and apply a per-connection message rate limit. The config dir is created
+it never lands in logs). The Electron main process serves packaged assets through a privileged
+`svara://app` scheme; renderer windows are sandboxed, context-isolated and have Node integration
+disabled. Check the WebSocket `Origin` header (allow `svara://app`, later the paired extension host).
+Limit frame size to 1 MB and apply a per-connection message rate limit. The config dir is created
 with user-only permissions (0700 on POSIX).
 
 **Asset serving.** The core also serves `GET /assets/<path>` (token in the `Authorization` header,
@@ -336,9 +339,8 @@ svara/
 │   │   └── __main__.py           # composition root
 │   └── tests/
 ├── apps/
-│   ├── desktop/                  # Tauri 2 app
-│   │   ├── src-tauri/            # Rust: windows, menu, input-region click-through, sidecar
-│   │   │                         #   (or electron/ if Spike A picks Electron, see 02 §1.3)
+│   ├── desktop/                  # Electron app
+│   │   ├── electron/             # main/preload: windows, menu, shaped click-through, sidecar
 │   │   └── src/                  # React: windows/avatar, windows/conversations, windows/configure
 │   └── extension/                # README only until the extension phase (see 10)
 ├── packages/
@@ -349,7 +351,7 @@ svara/
 └── .github/workflows/ci.yml
 ```
 
-`packages/avatar` has no React and no Tauri imports, so the extension (or a web demo page for the
+`packages/avatar` has no React and no Electron imports, so the extension (or a web demo page for the
 portfolio) can render the same avatar. That is the one place where early separation pays for itself.
 
 ## 7. Tooling
@@ -357,7 +359,6 @@ portfolio) can render the same avatar. That is the one place where early separat
 - **Python:** `uv`, `ruff` (lint + format), `pyright` (strict for `kernel`, `protocol`, `tools`),
   `pytest` + `pytest-asyncio` + `hypothesis`.
 - **TypeScript:** `pnpm`, Vite, `biome` (lint + format), `vitest`, `tsc --noEmit`.
-- **Rust:** `cargo fmt`, `clippy`. Keep the Rust side small.
 - **CI:** GitHub Actions on `ubuntu-24.04` (plus the test suite in an `ubuntu:26.04` container)
   running lint, type checks, unit tests and the protocol drift check. Release builds (`.deb`) are
   built on 24.04 so the bundled core links against the older glibc and runs on both releases.

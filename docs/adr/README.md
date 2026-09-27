@@ -11,7 +11,7 @@ Svara records durable architecture choices here using the process in
 | [0003](0003-separate-python-core-and-web-shell.md) | Separate the Python core from the web desktop shell | Accepted |
 | [0004](0004-use-reversible-plugin-kernel.md) | Use a small reversible plugin kernel | Accepted |
 | [0005](0005-use-python-314-structured-concurrency.md) | Use standard Python 3.14 with structured concurrency | Accepted |
-| [0006](0006-select-desktop-shell-by-measurement.md) | Select the desktop shell by measurement | Proposed |
+| [0006](0006-select-desktop-shell-by-measurement.md) | Select Electron as the desktop shell | Accepted |
 | [0007](0007-use-vrm-10-avatars.md) | Use VRM 1.0 avatars with a CC0 default | Accepted |
 | [0008](0008-build-phoneme-to-viseme-performance-engine.md) | Build a phoneme-to-viseme performance engine | Accepted |
 | [0009](0009-use-kokoro-with-thin-onnx-runner.md) | Use Kokoro through a thin ONNX runner | Accepted |

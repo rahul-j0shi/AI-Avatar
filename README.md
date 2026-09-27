@@ -9,7 +9,8 @@ The implementation plan is in [`docs/revamp/`](docs/revamp/README.md). The autho
 implementation backlog is [`docs/revamp/13-implementation-guide.md`](docs/revamp/13-implementation-guide.md).
 
 Implementation is currently in Phase 0. The previous browser-based proof of concept is preserved in
-the `v0-prototype` Git tag.
+the `v0-prototype` Git tag. ADR-0006 selected Electron as the Ubuntu desktop shell after the measured
+Tauri/Electron comparison.
 
 ## Development
 
