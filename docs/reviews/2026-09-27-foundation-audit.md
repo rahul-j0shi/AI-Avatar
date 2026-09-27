@@ -139,6 +139,7 @@ Keep the working branch. Checkpoint merges do not turn unchecked gates into comp
 
 ## Verification of the corrected build
 
+- `make setup UV=/tmp/svara-audit-tools/bin/uv`: locked Python and pnpm installation passed.
 - `make lint test smoke-deps UV=/tmp/svara-audit-tools/bin/uv`: passed. Ruff, expanded Python type
   checks (including spikes), Biome/CJS and TypeScript; 10 Python + 9 Vitest + 4 Node tests. All 19
   runtime imports and four native calls passed on local standard CPython 3.14.7.
