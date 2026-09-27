@@ -41,11 +41,14 @@ jobs:
       - name: Test
         run: make test
 
+      - name: Smoke-test Python runtime dependencies
+        run: make smoke-deps
+
       - name: Check generated files
         run: make gen && git diff --exit-code
 
   core-ubuntu-26:
-    name: Ubuntu 26.04 · core tests
+    name: Ubuntu 26.04 · core tests and dependency smoke
     runs-on: ubuntu-24.04
     container: ubuntu:26.04
     steps:
@@ -60,7 +63,14 @@ jobs:
           version: "0.12.19"
 
       - name: Install locked core dependencies
-        run: uv sync --project core --locked
+        run: |
+          uv sync --project core --locked --no-install-project --no-build
+          uv sync --project core --locked
 
       - name: Run core tests
-        run: uv run --project core pytest -c core/pyproject.toml
+        run: >-
+          uv run --project core pytest -c core/pyproject.toml
+          core/tests/unit core/tests/contract core/tests/golden
+
+      - name: Smoke-test Python runtime dependencies
+        run: uv run --project core python spikes/dependencies/smoke.py

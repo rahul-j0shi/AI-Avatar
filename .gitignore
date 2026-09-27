@@ -24,6 +24,7 @@ apps/desktop/.vite/
 apps/desktop/public/spike-assets/*.vrm
 apps/desktop/public/spike-assets/kokoro/
 spikes/kokoro/.cache/
+spikes/dependencies/.cache/
 packages/*/dist/
 
 # Local configuration and secrets

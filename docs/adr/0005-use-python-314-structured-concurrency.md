@@ -26,4 +26,7 @@ Consequences:
 Evidence:
 - T0.3 installs and tests the locked core on CPython 3.14 under Ubuntu 24.04 and an Ubuntu 26.04
   container.
-- T0.9 performs smoke calls against every native runtime dependency before Phase 1 proceeds.
+- [T0.9](../spikes/T0.9-python314-dependencies.md) locked the complete v1 dependency set and passed
+  all imports plus real ONNX Runtime, CTranslate2, PyAV, and dbus-fast calls on uv-managed standard
+  CPython 3.14.7 under Ubuntu 24.04 and a clean Ubuntu 26.04 container. No Python 3.13 fallback is
+  required.

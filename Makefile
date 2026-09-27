@@ -1,11 +1,12 @@
 UV ?= uv
 PNPM ?= corepack pnpm
 
-PYTHON_PATHS := core/src core/tests
+PYTHON_PATHS := core/src core/tests spikes/dependencies
 
-.PHONY: setup lint lint-python lint-typescript test test-python test-typescript gen dev demo
+.PHONY: setup lint lint-python lint-typescript test test-python test-typescript smoke-deps gen dev demo
 
 setup:
+	$(UV) sync --project core --locked --no-install-project --no-build
 	$(UV) sync --project core --locked
 	$(PNPM) install --frozen-lockfile
 
@@ -22,10 +23,14 @@ lint-typescript:
 test: test-python test-typescript
 
 test-python:
-	$(UV) run --project core pytest -c core/pyproject.toml
+	$(UV) run --project core pytest -c core/pyproject.toml \
+		core/tests/unit core/tests/contract core/tests/golden
 
 test-typescript:
 	$(PNPM) test
+
+smoke-deps:
+	$(UV) run --project core python spikes/dependencies/smoke.py
 
 gen:
 	@echo "No generated schemas yet; generators arrive with T1.2 and T1.6."
