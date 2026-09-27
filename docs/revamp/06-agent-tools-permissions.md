@@ -129,7 +129,7 @@ The **exact tool list, arguments and limits are in 12 F25**; this section explai
 
 | Phase | Tools | Capability | Default |
 |-------|-------|-----------|---------|
-| 4a (read) | `fs.list`, `fs.read_file` (text, PDF text, image → vision), `fs.search` (name/content, bounded), `clipboard.read`, `screen.capture` (one monitor or window), `apps.running` / `apps.focused` (AT-SPI), `apps.list` (installed `.desktop` entries), `system.info` | `fs.read`, `clipboard.read`, `screen.capture`… | Allowed in read-only |
+| 4a (read) | `fs.list`, `fs.read_file` (text, PDF text, image → vision), `fs.search` (name/content, bounded), `clipboard.read`, `screen.capture` (`primary` or `all`, F25), `apps.running` / `apps.focused` (AT-SPI), `apps.list` (installed `.desktop` entries), `system.info` | `fs.read`, `clipboard.read`, `screen.capture`… | Allowed in read-only |
 | 4b (act) | `fs.write_file`, `fs.move`, `fs.trash` (never hard delete), `clipboard.write`, `app.open` (also brings a running app to the front), `url.open`, `notify` | `fs.write`, `app.open`… | Ask/deny by mode |
 | 4c (exec) | `shell.exec` (no shell interpolation; argv list; cwd; timeout; output cap) | `shell.exec` | Deny unless a rule allows |
 | 4d (computer use) | `input.move/click/type/key/scroll` + screenshot loop | `input.control` | ASK once per turn; the grant covers that turn only, capped at 50 actions / 120 s (12 F26). Stop hotkey; visible "controlling" state on the avatar |

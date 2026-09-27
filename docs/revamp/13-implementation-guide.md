@@ -43,7 +43,11 @@ Versions are the current releases at planning time. Phase 0 locks exact versions
 | ruff 0.16.x · pyright 1.1.41x · pytest + pytest-asyncio + hypothesis 6.x | — | Python quality |
 | biome 2.5.x · vitest 5.x · TypeScript 5.x | — | TS quality |
 
-### 2.2 Python runtime dependencies (the complete list for v1)
+### 2.2 Python runtime dependency baseline
+
+The default-core baseline below was exercised in T0.9. Optional Coqui remains in F12/T5.4 but has
+no package in this baseline or adapter test yet. Its dependency/packaging compatibility with the
+no-PyTorch default must be resolved before T5.4; do not call this a verified complete optional stack.
 
 | Package | Version line | Used for | Verified |
 |---------|-------------|----------|----------|

@@ -67,7 +67,7 @@ later drive a browser extension; that is planned for, not built.
    policy check, and an approval if the policy says so. Everything is audited.
 6. **No over-engineering.** One Python process, one desktop shell, SQLite, JSON config files. No
    microservices, no server, no accounts, no DI framework beyond the ~300-line kernel, no LangGraph,
-   no state-management library.
+   and only one small frontend store fed by protocol messages (02 §1.5).
 7. **Portfolio quality.** Typed code, tests that prove the hard parts (kernel revertibility, permission
    engine, viseme timing), CI, measured latency, a clear README with a demo video, and ADRs.
 

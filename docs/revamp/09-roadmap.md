@@ -152,7 +152,8 @@ while the avatar looks thoughtful. Dragging, the menu and Exit all work. It surv
 - [ ] Silero VAD (ONNX, own wrapper); turn TaskGroup with bounded queues; segmenter with tag extraction.
 - [ ] STT adapters: faster-whisper (default), Deepgram. TTS adapters: Kokoro (default), ElevenLabs.
 - [ ] Double-click → listen; states `listening → thinking → speaking`; response modes.
-- [ ] Barge-in via cancellation; truncated message saved at the spoken word.
+- [ ] Barge-in via cancellation; preserve the full reply and record the last spoken word in an
+      interruption event/note (F13), without editing sent history.
 
 3b — Performance engine
 - [ ] G2P (espeak-ng subprocess, all languages), Kokoro runner (03 §4.8), phoneme → viseme table, Tier A and B timing,

@@ -43,8 +43,8 @@ preset models (`VRoidPreset_A` … `Z`) are **CC0** (copyright waived, no condit
 - **Licence record:** `assets/LICENSES.md` states the preset name, its CC0 source (the VRoid FAQ URL),
   and the export date. It is committed with Git LFS, only once, not twice like today.
 - **Respect VRM licence metadata:** imported `.vrm` files carry usage permissions (avatar
-  permission, commercial use, modification). The import dialog shows them, and the app warns if a
-  model forbids modification before the looks editor changes it.
+  permission, commercial use, modification). The import dialog shows them; if modification is
+  prohibited, looks edits are blocked with an explanation (F14), not merely warned about.
 
 **Animation assets (idle and gestures)** are needed and must be licence-clean:
 
@@ -80,7 +80,7 @@ just writes this same file, so nothing is thrown away.
   },
   "idle": { "breathing": 0.6, "sway": 0.3, "animations": ["idle_1.vrma"] },
   "lipsync": {
-    "profile": "vrm-extended",                 // which retarget map to use (§4.4)
+    "profile": "vrm-basic",                    // default; extended only for custom rigs (§4.4)
     "jawGain": 1.0, "smoothingMs": { "attack": 35, "release": 80 }, "lookaheadMs": 60
   },
   "gestures": { "wave": "gestures/wave.vrma", "nod": "gestures/nod.vrma", "shrug": "gestures/shrug.vrma" }

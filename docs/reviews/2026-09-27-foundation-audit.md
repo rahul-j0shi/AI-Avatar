@@ -127,6 +127,9 @@ remain explicitly post-v1, not removed.
   retention. Pull those existing task scopes forward before T4.10; do not weaken its checklist.
 - Document 05's provider/policy assumptions require fresh primary-source verification at T0.11/T1.9.
   This audit made no paid provider call and did not verify subscription billing.
+- Optional Coqui is specified but absent from the verified dependency baseline. Its package/runtime
+  strategy must be reconciled with the no-PyTorch default before T5.4; no new dependency or silent
+  removal of that feature is authorized by this audit.
 - Resolve native idle-focus/typing with actual Wayland input tests; a GNOME extension or altered
   user-facing UX requires a new design decision.
 - No renderer CPU/RAM improvement or acoustic AEC quality is claimed by this correction pass.
