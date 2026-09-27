@@ -5,10 +5,16 @@ import {
   type RenderMeasurement,
 } from "@svara/avatar";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { SpikePlayback } from "./spike-playback";
 
 interface InputRegion {
   height: number;
   width: number;
+  x: number;
+  y: number;
+}
+
+interface Point {
   x: number;
   y: number;
 }
@@ -31,9 +37,12 @@ interface KokoroSample {
 declare global {
   interface Window {
     svaraSpike?: {
+      getWindowPosition: () => Promise<Point>;
       kind: "electron";
       recordEvent: (name: string, details: unknown) => Promise<void>;
+      setFocusable: (focusable: boolean) => Promise<string>;
       setInputRegions: (regions: InputRegion[]) => Promise<string>;
+      setWindowPosition: (position: Point) => Promise<void>;
     };
   }
 }
@@ -73,6 +82,9 @@ const collectInputRegions = (): InputRegion[] =>
 
 export function SpikeApp() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const dragRef = useRef<{ pointer: Point; window?: Point; id: number } | null>(null);
+  const playbackRef = useRef(new SpikePlayback());
+  const toneContextsRef = useRef(new Set<AudioContext>());
   const rendererRef = useRef<AvatarRenderer | null>(null);
   const objectUrlRef = useRef<string | undefined>(undefined);
   const [mode, setModeState] = useState<AvatarMode>("idle");
@@ -114,8 +126,11 @@ export function SpikeApp() {
       onModelLoaded: (name) => setModelStatus(`VRM loaded: ${name}`),
     });
     rendererRef.current = renderer;
+    const abort = new AbortController();
+    const playback = playbackRef.current;
+    const toneContexts = toneContextsRef.current;
 
-    void fetch("/spike-assets/avatar.vrm")
+    void fetch("/spike-assets/avatar.vrm", { signal: abort.signal })
       .then(async (response) => {
         if (!response.ok || response.headers.get("content-type")?.includes("text/html")) {
           setModelStatus(
@@ -125,10 +140,15 @@ export function SpikeApp() {
         }
         setModelStatus("Loading ignored test VRM…");
         const objectUrl = URL.createObjectURL(await response.blob());
+        if (abort.signal.aborted) {
+          URL.revokeObjectURL(objectUrl);
+          return;
+        }
         objectUrlRef.current = objectUrl;
         return renderer.loadVrm(objectUrl);
       })
       .catch((error: unknown) => {
+        if (abort.signal.aborted) return;
         setModelStatus(`Ignored test VRM unavailable: ${String(error)}`);
       });
 
@@ -137,6 +157,10 @@ export function SpikeApp() {
     const timeout = window.setTimeout(() => void updateInputRegions(), 250);
 
     return () => {
+      abort.abort();
+      playback.stop();
+      for (const context of toneContexts) void context.close().catch(() => {});
+      toneContexts.clear();
       window.clearTimeout(timeout);
       resizeObserver.disconnect();
       renderer.dispose();
@@ -162,8 +186,54 @@ export function SpikeApp() {
   }, [updateInputRegions]);
 
   const setMode = (nextMode: AvatarMode) => {
+    playbackRef.current.stop();
     rendererRef.current?.setMode(nextMode);
     setModeState(nextMode);
+  };
+
+  const setWindowFocusable = async (focusable: boolean) => {
+    if (!window.svaraSpike) {
+      setModelStatus("Native focus probe is unavailable in the browser harness");
+      return;
+    }
+    try {
+      setModelStatus(await window.svaraSpike.setFocusable(focusable));
+    } catch (error) {
+      setModelStatus(`Focus probe failed: ${String(error)}`);
+    }
+  };
+
+  const startWindowDrag = async (event: React.PointerEvent<HTMLElement>) => {
+    if (event.button !== 0 || !window.svaraSpike) {
+      return;
+    }
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const drag = {
+      pointer: { x: event.screenX, y: event.screenY },
+      id: event.pointerId,
+    };
+    dragRef.current = drag;
+    try {
+      const position = await window.svaraSpike.getWindowPosition();
+      if (dragRef.current === drag) dragRef.current.window = position;
+    } catch (error) {
+      if (dragRef.current === drag) dragRef.current = null;
+      setModelStatus(`Drag failed: ${String(error)}`);
+    }
+  };
+
+  const moveWindowDrag = (event: React.PointerEvent<HTMLElement>) => {
+    const drag = dragRef.current;
+    if (!drag?.window || drag.id !== event.pointerId || !window.svaraSpike) {
+      return;
+    }
+    if (Math.hypot(event.screenX - drag.pointer.x, event.screenY - drag.pointer.y) <= 4) return;
+    void window.svaraSpike
+      .setWindowPosition({
+        x: drag.window.x + event.screenX - drag.pointer.x,
+        y: drag.window.y + event.screenY - drag.pointer.y,
+      })
+      .catch((error: unknown) => setModelStatus(`Drag failed: ${String(error)}`));
   };
 
   const loadFile = async (file: File) => {
@@ -201,8 +271,9 @@ export function SpikeApp() {
   };
 
   const testAudio = async () => {
+    const context = new AudioContext();
+    toneContextsRef.current.add(context);
     try {
-      const context = new AudioContext();
       await context.resume();
       const gain = context.createGain();
       const oscillator = context.createOscillator();
@@ -213,13 +284,18 @@ export function SpikeApp() {
       oscillator.connect(gain).connect(context.destination);
       oscillator.start();
       oscillator.stop(context.currentTime + 0.82);
-      oscillator.addEventListener("ended", () => void context.close());
+      oscillator.addEventListener("ended", () => {
+        toneContextsRef.current.delete(context);
+        if (context.state !== "closed") void context.close().catch(() => {});
+      });
       await invokeShell("record_event", {
         details: { audioContextState: context.state, sampleRate: context.sampleRate },
         name: "web-audio",
       });
       setReport((current) => ({ ...current, webAudio: "passed" }));
     } catch {
+      toneContextsRef.current.delete(context);
+      if (context.state !== "closed") void context.close().catch(() => {});
       setReport((current) => ({ ...current, webAudio: "failed" }));
     }
   };
@@ -230,21 +306,15 @@ export function SpikeApp() {
       return;
     }
     try {
-      const context = new AudioContext();
-      await context.resume();
-      const response = await fetch(kokoroSample.audioUrl);
-      const audio = await context.decodeAudioData(await response.arrayBuffer());
-      const source = context.createBufferSource();
-      source.buffer = audio;
-      source.connect(context.destination);
-      const delaySeconds = 0.08;
-      renderer.playPerformance(kokoroSample.track, performance.now() + delaySeconds * 1_000);
-      setModeState("speaking");
-      source.addEventListener("ended", () => {
-        setMode("idle");
-        void context.close();
+      const played = await playbackRef.current.play(kokoroSample.audioUrl, kokoroSample.track, {
+        playPerformance: (track, start, clock) => renderer.playPerformance(track, start, clock),
+        setMode: () => {
+          renderer.setMode("idle");
+          setModeState("idle");
+        },
       });
-      source.start(context.currentTime + delaySeconds);
+      if (!played) return;
+      setModeState("speaking");
       await invokeShell("record_event", {
         details: {
           durationMs: kokoroSample.track.durationMs,
@@ -272,7 +342,22 @@ export function SpikeApp() {
 
   return (
     <main className={`shell-${shellKind()}`}>
-      <section aria-label="Draggable avatar" className="avatar-hit-region" data-input-region>
+      <section
+        aria-label="Draggable avatar"
+        className="avatar-hit-region"
+        data-input-region
+        onPointerCancel={() => {
+          dragRef.current = null;
+        }}
+        onLostPointerCapture={() => {
+          dragRef.current = null;
+        }}
+        onPointerDown={(event) => void startWindowDrag(event)}
+        onPointerMove={moveWindowDrag}
+        onPointerUp={() => {
+          dragRef.current = null;
+        }}
+      >
         <canvas ref={canvasRef} />
         <div className={`status-orb ${mode}`} aria-label={`${mode} mode`} role="status" />
       </section>
@@ -319,6 +404,15 @@ export function SpikeApp() {
             type="button"
           >
             {running === "speaking" ? "Measuring 10s…" : "Measure speaking · 60 fps"}
+          </button>
+        </div>
+
+        <div className="measurements">
+          <button onClick={() => void setWindowFocusable(true)} type="button">
+            Request keyboard focus
+          </button>
+          <button onClick={() => void setWindowFocusable(false)} type="button">
+            Release keyboard focus
           </button>
         </div>
 

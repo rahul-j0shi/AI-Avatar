@@ -4,7 +4,7 @@ Status: Accepted
 Context: Configuration must be editable both by people and by the Configure window, validate before
 application, preserve comments, and turn components on or off without restart. Supporting several
 formats would multiply parsers, schemas, migrations, and UI behavior. The design is in
-[Configuration §§1–3](../revamp/08-config-and-data.md#1-files-all-in-the-os-config-dir-via-platformdirs-eg-configsvara).
+[Configuration §§1–3](../revamp/08-config-and-data.md).
 
 Decision:
 - Use versioned JSONC files under the platform config directory for settings, permissions, MCP, and
@@ -14,8 +14,8 @@ Decision:
   error.
 - Convert valid configuration into a plugin tree and mount, unmount, or reconfigure only the changed
   nodes.
-- Watch files, deduplicate panel writes by content hash, and write atomically while keeping
-  machine-owned values separate from commented human files.
+- Watch files, deduplicate panel writes by content hash, and write atomically. Permission grants
+  are separate; UI position uses minimal comment-preserving edits in `config.json` (F02).
 - Run ordered, backup-first migrations by file version.
 
 Consequences:

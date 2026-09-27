@@ -64,10 +64,6 @@ main {
   cursor: grabbing;
 }
 
-.shell-electron .avatar-hit-region {
-  -webkit-app-region: drag;
-}
-
 canvas {
   width: 100%;
   height: 100%;

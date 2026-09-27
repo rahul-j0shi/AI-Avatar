@@ -11,7 +11,8 @@ Decision:
 - Build one amd64 `.deb` on Ubuntu 24.04 and test it on clean Ubuntu 24.04 and 26.04 systems.
 - Install the application, desktop entry, icon, licenses, notices, and declared system dependencies.
 - Publish release artifacts and SHA-256 checksums through GitHub Releases.
-- Preserve user data on ordinary uninstall; remove it only through purge or the explicit reset flow.
+- Preserve user data on ordinary uninstall. `svara --purge-user-data` explicitly confirms and
+  removes current-user data/integrations before uninstall; package `apt purge` does not erase homes.
 - Do not ship Snap, Flatpak, a PPA/APT repository, code signing, or automatic updates in v1.
 - Treat any AppImage as unsupported if one is produced for convenience.
 

@@ -23,6 +23,7 @@ Consequences:
 - Svara owns language normalization, retargeting, and synchronization quality.
 
 Evidence:
-- T0.8 exercises a hand-built viseme track against the default VRM and records timing error.
+- T0.8 exercises a viseme track against an ignored test VRM, not the unselected production asset.
+  Duration extraction is confirmed; true phoneme/visible accuracy remains open.
 - [Feature F15](../revamp/12-feature-specification.md#f15--lip-sync-performance-engine) defines the
   quality and fallback acceptance criteria.

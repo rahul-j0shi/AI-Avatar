@@ -41,6 +41,9 @@ jobs:
       - name: Test
         run: make test
 
+      - name: Build desktop probe
+        run: corepack pnpm --filter @svara/desktop build
+
       - name: Smoke-test Python runtime dependencies
         run: make smoke-deps
 
@@ -68,9 +71,9 @@ jobs:
           uv sync --project core --locked
 
       - name: Run core tests
-        run: >-
-          uv run --project core pytest -c core/pyproject.toml
-          core/tests/unit core/tests/contract core/tests/golden
+        run: |
+          uv run --project core pytest -c core/pyproject.toml core/tests/unit core/tests/contract core/tests/golden spikes/ubuntu-integration
+          PYTHONPATH=spikes/kokoro/src uv run --project core pytest -c core/pyproject.toml spikes/kokoro/tests
 
       - name: Smoke-test Python runtime dependencies
         run: uv run --project core python spikes/dependencies/smoke.py

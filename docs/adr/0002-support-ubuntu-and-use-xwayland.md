@@ -24,4 +24,6 @@ Consequences:
 
 Evidence:
 - T0.5 and T0.6 measure the window behavior in both candidate shells.
-- T0.10 records Mutter, portal, scaling, and focus checks and documents any fallback.
+- [T0.10](../spikes/T0.10-ubuntu-integration.md) records partial X11 evidence and fallbacks.
+  Both Wayland checks remain open. Non-focusable construction changes window management and is
+  only an explicit experiment; the combined product focus contract is unresolved.

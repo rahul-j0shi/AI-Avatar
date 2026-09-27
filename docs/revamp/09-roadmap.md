@@ -31,6 +31,10 @@ at the end of 12.
 
 ## Phase 0: Reset, foundations, spikes
 
+**Checkpoint:** T0.10 is partial; development is paused for the
+[foundation audit](../reviews/2026-09-27-foundation-audit.md). Checkboxes are acceptance gates,
+not a commit log; the audit records foundations implemented and validation still missing.
+
 **Goal:** a clean repo with CI, and the three biggest unknowns answered.
 
 Tasks

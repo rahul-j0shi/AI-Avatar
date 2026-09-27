@@ -55,8 +55,9 @@ typed text ─►│                    └──────► text deltas ─
 - While `speaking`, VAD stays active. If speech is detected for > 250 ms with enough energy (with echo
   cancellation on), the core cancels the turn's TaskGroup, sends `performance.stop`, and starts a new
   listening turn with the pre-roll audio.
-- The interrupted assistant message is saved as truncated at the word that was playing (from
-  `word_spans`), so the conversation history reflects what the user actually heard.
+- The interrupted assistant message is preserved unchanged. Record the last fully spoken word
+  from `word_spans` in an interruption event and prefix the next user turn with the interruption
+  note (F13, 05 §2a). Never truncate previously sent model history.
 - Barge-in can be switched off (`features.bargeIn`) for noisy rooms.
 
 ## 4. Adapters
@@ -93,7 +94,7 @@ recorded fixtures (cassettes), so adding a provider is a checklist, not a guess.
 an extra field (Azure needs `region`), and a **credential file** (Google Cloud STT uses a
 service-account JSON, which is imported into the keychain as a blob and never kept as a loose file).
 
-**Local model files** (Whisper, Kokoro, Silero) are downloaded on first use, not bundled. See 08 §6.
+**Local model files:** Whisper and Kokoro download on first use; Silero VAD is bundled (F33). See 08 §6.
 
 ## 4a. Failure handling (every stage)
 

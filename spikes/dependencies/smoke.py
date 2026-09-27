@@ -44,7 +44,7 @@ ONNX_ADD_ONE: Final = base64.b64decode(
 )
 
 
-def timed_call(call: Callable[[], object]) -> tuple[object, float]:
+def timed_call[T](call: Callable[[], T]) -> tuple[T, float]:
     started_at = time.perf_counter()
     result = call()
     return result, round((time.perf_counter() - started_at) * 1_000, 2)
@@ -61,6 +61,8 @@ def smoke_onnxruntime() -> dict[str, object]:
             str(model_path), providers=["CPUExecutionProvider"]
         )
         output = session.run(None, {"x": np.asarray([2], dtype=np.float32)})[0]
+    if not isinstance(output, np.ndarray):
+        raise TypeError("ONNX Runtime did not return a dense tensor")
     if output.tolist() != [3.0]:
         raise RuntimeError(f"ONNX Runtime returned {output!r}, expected [3.0]")
     return {"device": ort.get_device(), "output": output.tolist()}

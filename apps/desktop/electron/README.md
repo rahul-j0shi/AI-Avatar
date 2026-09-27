@@ -15,9 +15,18 @@ corepack pnpm --filter @svara/desktop shell:probe
 ```
 
 Electron uses a transparent, frameless, always-on-top, skip-taskbar `BrowserWindow`. Linux
-`BrowserWindow.setShape()` limits drawing and input to the avatar and diagnostic-panel rectangles,
-and CSS `-webkit-app-region: drag` provides native dragging from the avatar. The preload bridge is
-context-isolated and exposes only shape updates and structured measurement logging.
+`BrowserWindow.setShape()` limits drawing and input to the avatar and diagnostic-panel rectangles.
+The non-focusable Linux window is override-redirect, so Chromium's CSS drag region does not move it;
+the T0.10 probe instead pointer-captures the avatar and sends validated absolute positions through
+the narrow preload bridge without polling the global cursor.
+
+Default creation preserves the managed baseline. `SVARA_SPIKE_FOCUS_MODE=nonfocusable` opts into
+the experiment above; it does **not** implement the production idle-focus contract. Above-state
+and later keyboard focus were not proven together. Focus buttons report Electron state only,
+not a passed typing test. See `docs/spikes/T0.10-ubuntu-integration.md`.
+
+The preview binds only to 127.0.0.1 and refuses an already-serving port. Main accepts only that
+origin, denies renderer navigation/new windows and validates shape/position IPC.
 
 The completed measurements and remaining platform-coverage limitations are recorded in
 `docs/spikes/T0.6-electron.md`. T0.10 performs the outstanding XWayland integration checks before

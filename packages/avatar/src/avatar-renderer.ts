@@ -32,6 +32,8 @@ export class AvatarRenderer {
   #activeProbe: ActiveProbe | undefined;
   #animationFrame = 0;
   #disposed = false;
+  #loadGeneration = 0;
+  #performanceClock: (() => number) | undefined;
   #lastRenderedAt = 0;
   #mode: AvatarMode = "idle";
   #vrm: VRM | undefined;
@@ -71,21 +73,33 @@ export class AvatarRenderer {
   }
 
   dispose(): void {
+    if (this.#disposed) return;
     this.#disposed = true;
+    this.#loadGeneration += 1;
     cancelAnimationFrame(this.#animationFrame);
     this.#resizeObserver.disconnect();
     this.#finishProbe();
     this.#performancePlayer.stop();
-    this.#vrm?.scene.removeFromParent();
+    if (this.#vrm) VRMUtils.deepDispose(this.#vrm.scene);
+    VRMUtils.deepDispose(this.#fallbackRoot);
+    this.#scene.clear();
+    this.#vrm = undefined;
     this.#renderer.dispose();
   }
 
   async loadVrm(source: string): Promise<void> {
+    if (this.#disposed) return;
+    const generation = ++this.#loadGeneration;
     try {
       const gltf = await this.#loader.loadAsync(source);
+      if (this.#disposed || generation !== this.#loadGeneration) {
+        VRMUtils.deepDispose(gltf.scene);
+        return;
+      }
       const vrm = gltf.userData.vrm as VRM | undefined;
 
       if (!vrm) {
+        VRMUtils.deepDispose(gltf.scene);
         throw new Error("The selected file is valid glTF, but has no VRM extension.");
       }
 
@@ -93,7 +107,10 @@ export class AvatarRenderer {
       VRMUtils.combineSkeletons(vrm.scene);
       VRMUtils.rotateVRM0(vrm);
 
-      this.#vrm?.scene.removeFromParent();
+      if (this.#vrm) {
+        this.#vrm.scene.removeFromParent();
+        VRMUtils.deepDispose(this.#vrm.scene);
+      }
       this.#vrm = vrm;
       this.#fallbackRoot.visible = false;
       this.#scene.add(vrm.scene);
@@ -102,7 +119,7 @@ export class AvatarRenderer {
       this.#options.onModelLoaded?.(modelName ?? "VRM avatar");
     } catch (cause) {
       const error = cause instanceof Error ? cause : new Error(String(cause));
-      this.#options.onError?.(error);
+      if (!this.#disposed && generation === this.#loadGeneration) this.#options.onError?.(error);
       throw error;
     }
   }
@@ -118,9 +135,14 @@ export class AvatarRenderer {
     });
   }
 
-  playPerformance(track: PerformanceTrack, startAtMs: number): void {
+  playPerformance(
+    track: PerformanceTrack,
+    startAtMs: number,
+    clock = () => performance.now(),
+  ): void {
     this.setMode("speaking");
     this.#performancePlayer.play(track, startAtMs);
+    this.#performanceClock = clock;
   }
 
   resize(): void {
@@ -133,6 +155,8 @@ export class AvatarRenderer {
   }
 
   setMode(mode: AvatarMode): void {
+    this.#performanceClock = undefined;
+    this.#performancePlayer.stop();
     if (mode === this.#mode) {
       return;
     }
@@ -214,7 +238,8 @@ export class AvatarRenderer {
 
     const delta = this.#lastRenderedAt === 0 ? 0 : (timestamp - this.#lastRenderedAt) / 1_000;
     const elapsed = timestamp / 1_000;
-    const faceFrame = this.#performancePlayer.update(timestamp);
+    const faceFrame = this.#performancePlayer.update(this.#performanceClock?.() ?? timestamp);
+    if (this.#performanceClock && faceFrame.ended) this.setMode("idle");
     const hasPerformance = !faceFrame.ended;
     const mouthWeight = hasPerformance
       ? faceFrame.jaw
@@ -228,6 +253,9 @@ export class AvatarRenderer {
       const expressions = this.#vrm.expressionManager;
       if (hasPerformance) {
         const weights = this.#retargetBasic(faceFrame.weights);
+        for (const name of ["aa", "ee", "ih", "oh", "ou"] as const) {
+          weights[name] *= faceFrame.jaw * (1 - faceFrame.weights.PP);
+        }
         expressions?.setValue(VRMExpressionPresetName.Aa, weights.aa);
         expressions?.setValue(VRMExpressionPresetName.Ee, weights.ee);
         expressions?.setValue(VRMExpressionPresetName.Ih, weights.ih);

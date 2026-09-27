@@ -23,6 +23,11 @@ explicit decision below.
 
 ### 1.2 How each Wayland restriction is handled
 
+**Evidence status:** these are design hypotheses, not completed platform checks.
+[T0.10](../spikes/T0.10-ubuntu-integration.md) has only partial Ubuntu 24.04 **X11** evidence;
+Wayland on both target releases remains unverified. Portal grant persistence, app activation and
+focus/clipboard behavior must not be promised until their interactive matrix passes.
+
 | Need | Decision on Ubuntu (GNOME Wayland) | To verify in Spike A |
 |------|-------------------------------------|----------------------|
 | **Position + always-on-top + drag** | The **avatar window runs through XWayland** (Electron forces `--ozone-platform=x11`). Mutter honours EWMH hints for X11 clients (`_NET_WM_STATE_ABOVE`, move requests, native app-region drag) | That Mutter 46 and 50 keep an XWayland window on top and at our position, and that drag works |
@@ -133,16 +138,18 @@ request; they are never embedded beside the avatar.
 
 - **Default position:** bottom-right of the primary monitor's *work area* (excluding the GNOME top
   bar and the Ubuntu dock), with a 16 px margin.
-- **Drag:** `pointerdown` + move > 4 px → `appWindow.startDragging()`. On drop, save `{monitor id,
+- **Drag:** `pointerdown` + move > 4 px → the selected Electron native drag/position bridge. On drop, save `{monitor id,
   x, y}` to `config.ui.avatar.position`. If that monitor is gone at next launch, fall back to the
   default.
 - **Click vs double-click vs drag** are told apart by a small gesture recogniser (distance and time
   thresholds). A single click does nothing, so the avatar never triggers by accident.
 - **Focus:** clicking the avatar would normally steal keyboard focus from the app you're working in.
-  The avatar window is therefore **non-focusable by default** (X11 input hint `accept_focus=false`)
-  and becomes focusable only while the type box or an approval bubble needs the keyboard. After that
-  it gives focus up. Wayland doesn't let us hand focus back to the previous app explicitly, so this is
-  best-effort and verified in Spike D.
+  The required product behavior is **non-focus-stealing while idle**, with keyboard input available
+  for the type box or an approval. The native mechanism is unresolved: T0.10 found that constructing
+  Electron with `focusable:false` changed X11 window management and later focus requests did not
+  establish the expected active-window state. Keep this an opt-in probe, not a production solution.
+  Prove above/drag/typing together on Wayland before choosing the implementation; do not change the
+  avatar-only UX to accommodate the experiment. Returning prior focus is best-effort.
 - **Double-click → listen.** Toggles listening. The avatar shows a *listening* state (pose, glow, ear
   cue). A second double-click, a VAD end-of-speech or Esc stops it.
 - **Click-through:** the window is bigger than the avatar (room for the bubble). The renderer reports
@@ -236,8 +243,9 @@ validated against the pydantic JSON Schema and applied live through the kernel (
 | **Persona** | Markdown editor for `persona.md` (name, personality, tone, do/don't) with a "test in bubble" button |
 | **Skills** | List of installed skills (toggle each), "New skill" (template `SKILL.md`), editor, import from folder |
 | **MCP servers** | Monaco editor on `mcp.json` (Claude-Desktop-compatible) + live status per server (connected, tools count, error) + per-server toggle |
-| **Permissions** | Monaco editor on `permissions.json` + mode selector (read-only / ask / custom) + audit log table |
-| **Features** | One switch per feature flag (voice input, voice output, lip sync, expressions, gestures, desktop tools, MCP, skills, bubble auto-hide, telemetry-to-local-log…) |
+| **Permissions** | Monaco editor on `permissions.json` + mode selector (read-only / ask / trusted) + audit log table |
+| **Features** | One switch per feature flag from F30; no telemetry |
+| **Privacy** | Live data-egress table and screenshot-consent status (F34) |
 | **Shortcuts** | Add/change/remove Show/Hide, Stop and push-to-talk GNOME shortcuts; cold-start behaviour is explained |
 | **Advanced** | Core logs, latency overlay toggle, open config folder, reset settings, remove current-user Svara data and integrations |
 
@@ -274,6 +282,7 @@ These are cheap to do and they show in a portfolio:
 
 - Respect `prefers-reduced-motion` (reduce idle sway, no bounce).
 - Captions: the bubble is also the caption track when voice output is on.
-- Keyboard: every menu action has a shortcut. Configure is fully keyboard-navigable.
+- Keyboard: menus and Configure are keyboard-navigable when focused. Global bindings are only
+  Show/Hide, Stop and push-to-talk (F01/F09/F27), opt-in and rebindable.
 - Frame budget: the renderer caps at 30 fps when idle and not hovered, and 60 fps while speaking. It
   pauses when the avatar is hidden. Battery matters for an always-on app.

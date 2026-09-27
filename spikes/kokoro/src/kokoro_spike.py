@@ -101,8 +101,8 @@ class CaseMeasurement:
     rounded_duration_frames: int
     sentence: str
     token_count: int
-    visible_onset_error_ms: int
-    visible_onset_ms: int
+    attack_adjusted_onset_error_ms: int
+    attack_adjusted_onset_ms: int
 
 
 def load_vocab(tokenizer_path: Path) -> dict[str, int]:
@@ -116,6 +116,7 @@ def phonemize(espeak: Path, text: str) -> str:
         check=True,
         capture_output=True,
         text=True,
+        timeout=10,
     )
     return " ".join(result.stdout.split())
 
@@ -141,6 +142,8 @@ def tokenize(
 def build_timeline(
     characters: Sequence[str], durations: npt.NDArray[np.float32]
 ) -> tuple[list[TokenTiming], int]:
+    if durations.ndim != 1 or not np.isfinite(durations).all() or (durations < 0).any():
+        raise ValueError("durations must be finite and non-negative")
     rounded_frames = np.rint(durations).astype(np.int64)
     if len(rounded_frames) != len(characters) + 2:
         raise ValueError("duration output does not match the padded token sequence")
@@ -164,7 +167,9 @@ def build_timeline(
 def build_viseme_keys(
     timeline: Sequence[TokenTiming],
 ) -> list[dict[str, int | float | str]]:
-    keys: list[dict[str, int | float | str]] = []
+    # Union overlapping trapezoids per channel before emitting sparse keys. Merely
+    # sorting independent ramps lets one phoneme's zero interrupt the next one.
+    channels: dict[str, dict[int, float]] = {}
     for timing in timeline:
         if timing.viseme == "sil":
             continue
@@ -176,14 +181,37 @@ def build_viseme_keys(
             else 0.65
         )
         attack_start = max(0, timing.start_ms - ATTACK_MS)
-        release_end = max(timing.end_ms + 80, timing.start_ms + 40)
-        keys.extend(
-            (
-                {"tMs": attack_start, "viseme": timing.viseme, "weight": 0.0},
-                {"tMs": timing.start_ms, "viseme": timing.viseme, "weight": weight},
-                {"tMs": release_end, "viseme": timing.viseme, "weight": 0.0},
-            )
+        hold_end = max(
+            timing.end_ms, timing.start_ms + (40 if timing.viseme in CLOSURES else 0)
         )
+        release_end = hold_end + 80
+        channel = channels.setdefault(timing.viseme, {})
+        for timestamp in range(attack_start, release_end + 1):
+            if timestamp < timing.start_ms:
+                value = (
+                    weight
+                    * (timestamp - attack_start)
+                    / (timing.start_ms - attack_start)
+                )
+            elif timestamp <= hold_end:
+                value = weight
+            else:
+                value = weight * (release_end - timestamp) / 80
+            channel[timestamp] = max(channel.get(timestamp, 0), value)
+
+    keys: list[dict[str, int | float | str]] = []
+    for viseme, channel in channels.items():
+        points = sorted(channel.items())
+        for index, (timestamp, weight) in enumerate(points):
+            if 0 < index < len(points) - 1:
+                before, after = points[index - 1], points[index + 1]
+                left = (weight - before[1]) / (timestamp - before[0])
+                right = (after[1] - weight) / (after[0] - timestamp)
+                if math.isclose(left, right, abs_tol=1e-9):
+                    continue
+            keys.append(
+                {"tMs": timestamp, "viseme": viseme, "weight": round(weight, 6)}
+            )
     return sorted(keys, key=lambda item: (int(item["tMs"]), str(item["viseme"])))
 
 
@@ -215,6 +243,10 @@ def measure_envelope_alignment(
     observed = envelope.astype(np.float64) / 255
     predicted_indices = np.flatnonzero(predicted > 0)
     observed_indices = np.flatnonzero(observed >= 0.08)
+    if not len(predicted_indices) or not len(observed_indices):
+        raise ValueError(
+            "onset comparison requires both predicted speech and audible audio"
+        )
     predicted_onset_ms = int(predicted_indices[0]) * ENVELOPE_HOP_MS
     envelope_onset_ms = int(observed_indices[0]) * ENVELOPE_HOP_MS
 
@@ -269,6 +301,10 @@ def infer_case(
         },
     )
     inference_ms = round((time.perf_counter() - started_at) * 1_000)
+    if not isinstance(waveform_output, np.ndarray) or not isinstance(
+        duration_output, np.ndarray
+    ):
+        raise TypeError("Kokoro must return dense waveform and duration tensors")
     waveform = np.asarray(waveform_output[0], dtype=np.float32)
     durations = np.asarray(duration_output[0], dtype=np.float32)
     timeline, rounded_frames = build_timeline(characters, durations)
@@ -295,8 +331,9 @@ def infer_case(
         rounded_duration_frames=rounded_frames,
         sentence=sentence,
         token_count=len(characters),
-        visible_onset_error_ms=envelope_onset - max(0, predicted_onset - ATTACK_MS),
-        visible_onset_ms=max(0, predicted_onset - ATTACK_MS),
+        attack_adjusted_onset_error_ms=envelope_onset
+        - max(0, predicted_onset - ATTACK_MS),
+        attack_adjusted_onset_ms=max(0, predicted_onset - ATTACK_MS),
     )
     track = {
         "durationMs": duration_ms,
@@ -367,8 +404,8 @@ def main() -> None:
             )
 
     absolute_onset_errors = [abs(item.onset_error_ms) for item in measurements]
-    absolute_visible_errors = [
-        abs(item.visible_onset_error_ms) for item in measurements
+    absolute_adjusted_errors = [
+        abs(item.attack_adjusted_onset_error_ms) for item in measurements
     ]
     summary = {
         "attackMs": ATTACK_MS,
@@ -376,9 +413,9 @@ def main() -> None:
         "frameHopSamples": FRAME_HOP_SAMPLES,
         "maxAbsoluteOnsetErrorMs": max(absolute_onset_errors),
         "meanAbsoluteOnsetErrorMs": round(float(np.mean(absolute_onset_errors)), 2),
-        "maxAbsoluteVisibleOnsetErrorMs": max(absolute_visible_errors),
-        "meanAbsoluteVisibleOnsetErrorMs": round(
-            float(np.mean(absolute_visible_errors)), 2
+        "maxAbsoluteAttackAdjustedOnsetErrorMs": max(absolute_adjusted_errors),
+        "meanAbsoluteAttackAdjustedOnsetErrorMs": round(
+            float(np.mean(absolute_adjusted_errors)), 2
         ),
         "modelRevision": MODEL_REVISION,
         "sampleRate": SAMPLE_RATE,

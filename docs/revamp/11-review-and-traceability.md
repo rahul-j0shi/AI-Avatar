@@ -4,6 +4,9 @@ This document validates the plan. It checks (1) that every item on the original 
 somewhere, (2) which gaps a critical review found and where each one is now fixed, and (3) which risks
 remain open. Re-run this review at the end of every phase.
 
+“Covered” and “Fixed in” below mean addressed **in the design**, not built or verified. Actual
+progress and F01–F40 ownership are in the [foundation audit](../reviews/2026-09-27-foundation-audit.md).
+
 ## 1. Requirements traceability
 
 | # | Wishlist item | Where it is designed | Phase | Status |
@@ -60,7 +63,7 @@ remain open. Re-run this review at the end of every phase.
 | G7 | Plugin failure behaviour undefined; "why isn't X working?" had no answer | Medium | 01 §3 failure isolation, `plugin.status` |
 | G8 | Third-party Python plugins: unclear whether allowed (a security hole if yes) | Medium | 01 §3 (built-in only in v1) |
 | G9 | Mic in the webview, echo-cancellation quality, autoplay: unverified assumptions | High | Superseded by G41: the mic moved to the core (PipeWire), 02 §1.4 |
-| G10 | Wayland breaks always-on-top and positioning | High | 02 §1.2 (the avatar window runs through XWayland; verified in Spike D) |
+| G10 | Wayland breaks always-on-top and positioning | High | 02 §1.2 design; Spike D Wayland checks remain open |
 | G11 | OS permissions not planned | High | 02 §1.5 (portal grants, shortcuts, echo-cancel, autostart), 09 Phase 4 |
 | G12 | Our screenshot tool would capture the avatar itself; the avatar shows in screen shares | Medium | 02 §1.2: hide during our own capture; screen-share exclusion is impossible on GNOME Wayland → documented + "Hide for 30 min" |
 | G13 | Kill-switch hotkey was scheduled after desktop tools shipped | High (safety) | 02 §3, 09 Phase 4 |
@@ -134,7 +137,7 @@ remain open. Re-run this review at the end of every phase.
 | G66 | The `silero-vad` package depends on PyTorch | High | 04 §2: the ONNX model with our own wrapper |
 | G67 | PyGObject has no wheels (needs system dev libraries) and is hard to bundle | Medium | 02 §1.2, 06 §4: AT-SPI and portals over `dbus-fast` |
 | G68 | The Agent SDK wheel bundles a ~100 MB Claude Code CLI; shipping it would bloat the `.deb` and bypass the user's own install | Medium | 05 §3.2: `cli_path` → the user's `claude`; excluded in packaging (T7.1) |
-| G69 | Kokoro Tier A timing was unconfirmed | Medium | Resolved: the timestamped ONNX export outputs `pred_dur` (03 §4.8); Spike B confirms accuracy |
+| G69 | Kokoro Tier A timing was unconfirmed | Medium | T0.8 confirms duration extraction; visual/phoneme accuracy remains open |
 | G70 | No field-level protocol payloads or complete config key list; no task-level backlog | High | 13 §6–§8 |
 | G71 | No language-ID choice for typed turns | Low | 03 §4.6: `tts.defaultLanguage` (no language-ID library) |
 | G72 | The shell spike's diagnostic panel could be mistaken for, or leak into, the desktop product UI | High | 02 §2 production-surface invariant; 12 F02 AC7; 09 Phase 0/2; T2.3 screenshot + DOM audit |
@@ -178,5 +181,5 @@ Each piece of structure has to justify itself against a concrete requirement:
 
 ## 5. Still open (needs your answer)
 
-None. All decisions are recorded in the README's *Decided* list and, from T0.4, as ADRs. Remaining
-uncertainty is confined to the Phase 0 spikes, each of which has a written fallback.
+See the foundation audit and T0.10 evidence. Interactive Wayland sessions/VM access are needed to
+close platform gates. No automatic UX expansion or phase advancement follows from this review.

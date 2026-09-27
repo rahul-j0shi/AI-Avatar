@@ -24,5 +24,6 @@ Consequences:
 - The renderer and core exchange streamed audio and timing metadata across the protocol.
 
 Evidence:
-- T0.10 verifies monitor-mode cancellation and fallback behavior on Ubuntu's PipeWire version.
-- T3.3 and T3.11 implement capture, device selection, and the consent/revert flow.
+- [T0.10](../spikes/T0.10-ubuntu-integration.md) observed the monitor-mode graph on PipeWire 1.0.5.
+  Capture bytes and acoustic cancellation/fallback quality are not yet verified.
+- T3.2 and T3.11 will implement capture, device selection, and the consent/revert flow.

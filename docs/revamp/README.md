@@ -113,8 +113,9 @@ later drive a browser extension; that is planned for, not built.
 
 ## Open questions
 
-None. Implementation starts with [13 — Implementation guide & backlog](13-implementation-guide.md),
-task T0.1.
+Paused at T0.10 for the [foundation audit](../reviews/2026-09-27-foundation-audit.md). Open gates:
+Wayland on both releases, idle-focus/typing behavior, visible lip-sync accuracy and resource budgets.
+T0.11/T0.12 have not started. Accepted design decisions are not completed product features.
 
 ## Research sources (checked Sep 2026)
 

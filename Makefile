@@ -1,7 +1,7 @@
 UV ?= uv
 PNPM ?= corepack pnpm
 
-PYTHON_PATHS := core/src core/tests spikes/dependencies
+PYTHON_PATHS := core/src core/tests spikes/dependencies spikes/ubuntu-integration spikes/kokoro/src spikes/kokoro/tests
 
 .PHONY: setup lint lint-python lint-typescript test test-python test-typescript smoke-deps gen dev demo
 
@@ -25,9 +25,12 @@ test: test-python test-typescript
 test-python:
 	$(UV) run --project core pytest -c core/pyproject.toml \
 		core/tests/unit core/tests/contract core/tests/golden
+	PYTHONPATH=spikes/kokoro/src $(UV) run --project core pytest -c core/pyproject.toml spikes/kokoro/tests
+	$(UV) run --project core pytest -c core/pyproject.toml spikes/ubuntu-integration
 
 test-typescript:
 	$(PNPM) test
+	node --test apps/desktop/electron/*.test.cjs
 
 smoke-deps:
 	$(UV) run --project core python spikes/dependencies/smoke.py

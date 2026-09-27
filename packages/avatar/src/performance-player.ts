@@ -46,17 +46,38 @@ export class PerformancePlayer {
   #track: PerformanceTrack | undefined;
 
   play(track: PerformanceTrack, startAtMs: number): void {
-    this.#track = track;
-    this.#startAtMs = startAtMs;
-    this.#channels = new Map();
+    if (
+      ![track.durationMs, track.envelopeHopMs, startAtMs].every(Number.isFinite) ||
+      track.durationMs < 0 ||
+      track.envelopeHopMs <= 0 ||
+      track.envelope.some((value) => !Number.isFinite(value) || value < 0 || value > 255) ||
+      track.visemes.some(
+        (key) =>
+          !VISEMES.includes(key.viseme) ||
+          !Number.isFinite(key.tMs) ||
+          key.tMs < 0 ||
+          !Number.isFinite(key.weight) ||
+          key.weight < 0 ||
+          key.weight > 1,
+      )
+    ) {
+      throw new TypeError("Invalid performance track or clock origin.");
+    }
+    const channels = new Map<Viseme, VisemeKey[]>();
     for (const key of track.visemes) {
-      const channel = this.#channels.get(key.viseme) ?? [];
-      channel.push(key);
-      this.#channels.set(key.viseme, channel);
+      const channel = channels.get(key.viseme) ?? [];
+      channel.push({ ...key });
+      channels.set(key.viseme, channel);
     }
-    for (const channel of this.#channels.values()) {
+    for (const channel of channels.values()) {
       channel.sort((left, right) => left.tMs - right.tMs);
+      if (channel.some((key, index) => index > 0 && key.tMs === channel[index - 1]?.tMs)) {
+        throw new TypeError("Duplicate key timestamp in a viseme channel.");
+      }
     }
+    this.#track = { ...track, envelope: [...track.envelope] };
+    this.#startAtMs = startAtMs;
+    this.#channels = channels;
   }
 
   stop(): void {
@@ -97,7 +118,7 @@ export class PerformancePlayer {
       Math.max(0, Math.floor(elapsedMs / track.envelopeHopMs)),
     );
     const jaw = track.envelope.length > 0 ? (track.envelope[envelopeIndex] ?? 0) / 255 : 0;
-    return { ended: false, jaw, weights };
+    return { ended: false, jaw: jaw * (1 - closureWeight), weights };
   }
 
   #sample(keys: VisemeKey[], elapsedMs: number): number {

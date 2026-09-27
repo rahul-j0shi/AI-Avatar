@@ -6,7 +6,7 @@
   "description": "The Svara desktop surface.",
   "scripts": {
     "build": "tsc --noEmit && vite build",
-    "dev": "vite --host 0.0.0.0 --port 1420 --strictPort",
+    "dev": "vite --host 127.0.0.1 --port 1420 --strictPort",
     "shell:probe": "bash electron/run.sh",
     "spike:model": "bash electron/scripts/fetch-test-model.sh"
   },

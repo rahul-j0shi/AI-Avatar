@@ -5,8 +5,12 @@ repo_dir=$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)
 desktop_dir="$repo_dir/apps/desktop"
 
 corepack pnpm --dir "$desktop_dir" build
+if curl --max-time 1 --silent --fail http://127.0.0.1:1420 >/dev/null; then
+  printf 'Port 1420 is already serving content; stop that server before running this probe.\n' >&2
+  exit 2
+fi
 setsid corepack pnpm --dir "$desktop_dir" exec vite preview \
-  --host 0.0.0.0 --port 1420 --strictPort &
+  --host 127.0.0.1 --port 1420 --strictPort &
 preview_pid=$!
 
 cleanup() {
@@ -16,13 +20,17 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 for _ in $(seq 1 40); do
-  if curl --silent --fail http://127.0.0.1:1420 >/dev/null; then
+  if ! kill -0 "$preview_pid" 2>/dev/null; then
+    printf 'Preview process exited before readiness.\n' >&2
+    exit 2
+  fi
+  if curl --max-time 1 --silent --fail http://127.0.0.1:1420 >/dev/null; then
     break
   fi
   sleep 0.25
 done
 
-if ! curl --silent --fail http://127.0.0.1:1420 >/dev/null; then
+if ! curl --max-time 1 --silent --fail http://127.0.0.1:1420 >/dev/null; then
   printf 'The production preview server did not become ready.\n' >&2
   exit 2
 fi

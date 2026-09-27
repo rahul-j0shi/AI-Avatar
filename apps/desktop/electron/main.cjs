@@ -2,29 +2,16 @@ const path = require("node:path");
 
 const { app, BrowserWindow, ipcMain } = require("electron");
 
-const WIDTH = 480;
-const HEIGHT = 640;
-const MAX_REGIONS = 16;
+const {
+  WIDTH,
+  HEIGHT,
+  normalizeRegions,
+  normalizePosition,
+  validateUrl,
+} = require("./validation.cjs");
 
 app.commandLine.appendSwitch("ozone-platform", "x11");
 app.setPath("userData", path.join(app.getPath("temp"), "svara-electron-spike"));
-
-const normalizeRegions = (regions) => {
-  if (!Array.isArray(regions) || regions.length > MAX_REGIONS) {
-    throw new Error(`Expected at most ${MAX_REGIONS} input regions.`);
-  }
-
-  return regions.map((region) => {
-    const x = Math.max(0, Math.trunc(Number(region.x)));
-    const y = Math.max(0, Math.trunc(Number(region.y)));
-    const width = Math.min(WIDTH - x, Math.max(1, Math.trunc(Number(region.width))));
-    const height = Math.min(HEIGHT - y, Math.max(1, Math.trunc(Number(region.height))));
-    if (![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) {
-      throw new Error("Input regions must be finite, positive rectangles inside the window.");
-    }
-    return { x, y, width, height };
-  });
-};
 
 const createWindow = async () => {
   const window = new BrowserWindow({
@@ -36,6 +23,9 @@ const createWindow = async () => {
     alwaysOnTop: true,
     backgroundColor: "#00000000",
     center: true,
+    // Non-focusable creation changes X11 window management. Keep it opt-in until
+    // above/drag/typing are proven together on the target Wayland desktops.
+    focusable: process.env.SVARA_SPIKE_FOCUS_MODE !== "nonfocusable",
     frame: false,
     hasShadow: false,
     resizable: false,
@@ -49,7 +39,21 @@ const createWindow = async () => {
   });
 
   window.setAlwaysOnTop(true);
-  await window.loadURL(process.env.SVARA_SPIKE_URL ?? "http://127.0.0.1:1420");
+  window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  window.webContents.on("will-navigate", (event) => event.preventDefault());
+  await window.loadURL(validateUrl(process.env.SVARA_SPIKE_URL ?? "http://127.0.0.1:1420"));
+  console.log(
+    "SVARA_SPIKE_EVENT",
+    JSON.stringify({
+      name: "window-contract",
+      details: {
+        alwaysOnTop: window.isAlwaysOnTop(),
+        bounds: window.getBounds(),
+        focusable: window.isFocusable(),
+        sessionType: process.env.XDG_SESSION_TYPE ?? null,
+      },
+    }),
+  );
 };
 
 ipcMain.handle("svara-spike:set-input-regions", (event, regions) => {
@@ -66,9 +70,45 @@ ipcMain.handle("svara-spike:record-event", (_event, name, details) => {
   console.log("SVARA_SPIKE_EVENT", JSON.stringify({ name, details }));
 });
 
-app.whenReady().then(createWindow).catch((error) => {
-  console.error(error);
-  app.exit(1);
+ipcMain.handle("svara-spike:get-window-position", (event) => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  if (!window) {
+    throw new Error("The Electron spike window is unavailable.");
+  }
+  const [x, y] = window.getPosition();
+  return { x, y };
 });
+
+ipcMain.handle("svara-spike:set-window-position", (event, position) => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  if (!window) {
+    throw new Error("The Electron spike window is unavailable.");
+  }
+  const { x, y } = normalizePosition(position);
+  window.setPosition(x, y);
+});
+
+ipcMain.handle("svara-spike:set-focusable", (event, focusable) => {
+  if (typeof focusable !== "boolean") {
+    throw new TypeError("Focusable state must be a boolean.");
+  }
+  const window = BrowserWindow.fromWebContents(event.sender);
+  if (!window) {
+    throw new Error("The Electron spike window is unavailable.");
+  }
+  window.setFocusable(focusable);
+  if (focusable) {
+    window.focus();
+  }
+  return `native focusable · ${window.isFocusable()} · focused · ${window.isFocused()}`;
+});
+
+app
+  .whenReady()
+  .then(createWindow)
+  .catch((error) => {
+    console.error(error);
+    app.exit(1);
+  });
 
 app.on("window-all-closed", () => app.quit());

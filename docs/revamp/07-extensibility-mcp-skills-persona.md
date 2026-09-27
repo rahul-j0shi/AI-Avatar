@@ -6,7 +6,7 @@ each can be toggled individually.
 ## 1. MCP servers
 
 - **Client:** the official `mcp` Python SDK. Transports: **stdio** (local servers) and **streamable
-  HTTP** (remote). SSE only if a server needs it.
+  HTTP** (remote). Legacy SSE is post-v1 (F28).
 - **Config file `mcp.json`** uses the **same `mcpServers` shape as Claude Desktop / Claude Code**, so
   users can paste existing configs:
 

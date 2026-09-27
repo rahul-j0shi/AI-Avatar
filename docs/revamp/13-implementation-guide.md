@@ -8,6 +8,9 @@ the features and acceptance criteria (AC) from 12 that it must satisfy.
 
 ## 1. How work flows
 
+**Checkpoint:** paused at T0.10 for [foundation review](../reviews/2026-09-27-foundation-audit.md).
+Close corrections and open gates before T0.11. A checkpoint merge is not a passed acceptance test.
+
 1. Pick the next task in §8 whose dependencies are done.
 2. **Definition of Ready:** the task's features exist in 12 with ACs, open design points are
    covered in 01–08 or an ADR, and the dependencies are merged.
@@ -176,8 +179,8 @@ T0.4, and the rest by the spikes.
 | 0006 | Shell: Electron, selected by the Tauri/Electron measurements | Accepted |
 | 0007 | VRM 1.0 + three.js/three-vrm; CC0 VRoid preset default (03 §1) | Accepted |
 | 0008 | Performance engine: IPA → 15 visemes, timing tiers, keyframes + envelope (03) | Accepted |
-| 0009 | Kokoro own runner on the timestamped ONNX; espeak-ng subprocess; no in-process GPL (03 §4.7–4.8) | Accepted (Spike B confirms timing) |
-| 0010 | Mic in the core via `pw-record`; PipeWire echo-cancel in monitor mode (02 §1.4) | Accepted (Spike D confirms monitor mode on PipeWire 1.0) |
+| 0009 | Kokoro own runner on the timestamped ONNX; espeak-ng subprocess; no in-process GPL (03 §4.7–4.8) | Accepted design; duration extraction confirmed, visual accuracy open |
+| 0010 | Mic in the core via `pw-record`; PipeWire echo-cancel in monitor mode (02 §1.4) | Accepted design; topology observed, acoustic effectiveness open |
 | 0011 | LLM ports `ChatModel` + `AgentBackend`; Claude subscription first via the Agent SDK (05) | Accepted (Spike E gate) |
 | 0012 | Own agent loop; append-only history (06 §1, 05 §2a) | Accepted |
 | 0013 | Permission model: capability rules, read-only default, handler-level enforcement (06) | Accepted |
@@ -403,6 +406,11 @@ tests pass.
 | T3.14 | `--demo` voice path (fake STT/TTS with Tier A timings) | F37 (AC1–2) | T3.8 | CI demo turn includes a performance |
 
 ### Phase 4 — Tools, permissions, safety (v0.5 cut after T4.10)
+
+**Release dependency correction:** F10/F12 adapter ACs, F14 editor/import ACs and F32 retention ACs
+are included in the existing v0.5 DoD but assigned to T5.4/T6.2/T6.4. Pull those existing scopes
+forward before T4.10, alongside early packaging, or the pre-release is not done. This does not
+reduce v0.5 or v1 scope and does not authorize starting those tasks during Phase 0.
 
 | ID | Task | Implements | Depends on | Done when |
 |----|------|-----------|------------|-----------|

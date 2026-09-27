@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Final
 
 WHISPER_REPOSITORY: Final = "Systran/faster-whisper-small"
+WHISPER_REVISION: Final = "536b0662742c02347bc0e980a01041f333bce120"
 
 
 def resident_mib() -> float:
@@ -92,6 +93,7 @@ def main() -> None:
     whisper_path = Path(
         snapshot_download(
             WHISPER_REPOSITORY,
+            revision=WHISPER_REVISION,
             local_dir=args.whisper_cache,
         )
     )
@@ -100,6 +102,7 @@ def main() -> None:
             {
                 "kokoro": run_child("onnx", args.kokoro_model),
                 "whisperSmallInt8": run_child("whisper", whisper_path),
+                "whisperRevision": WHISPER_REVISION,
             },
             indent=2,
             sort_keys=True,

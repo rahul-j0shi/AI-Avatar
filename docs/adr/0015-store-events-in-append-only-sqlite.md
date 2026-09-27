@@ -13,7 +13,7 @@ Decision:
 - Derive model history, conversation views, audits, and metrics as projections of events instead of
   storing them again.
 - Use transactional `PRAGMA user_version` migrations and configurable retention.
-- Do not store microphone or generated audio by default.
+- Do not persist microphone or conversation audio in v1 (F09/F32).
 
 Consequences:
 - History and audit agree by construction and can be replayed for diagnostics.

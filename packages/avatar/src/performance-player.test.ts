@@ -36,8 +36,33 @@ describe("PerformancePlayer", () => {
     const closure = player.update(100);
     expect(closure.weights.PP).toBe(1);
     expect(closure.weights.aa).toBe(0);
+    expect(closure.jaw).toBe(0);
 
     expect(player.update(300).ended).toBe(true);
     expect(player.update(301).jaw).toBe(0);
+  });
+
+  it("starts neutral, cancels cleanly, and does not retain caller mutations", () => {
+    const player = new PerformancePlayer();
+    const mutable = structuredClone(track);
+    player.play(mutable, 1_000);
+    const vowel = mutable.visemes[1];
+    if (!vowel) throw new Error("Missing test key");
+    vowel.weight = 0;
+    mutable.envelope[2] = 0;
+    expect(player.update(999).jaw).toBe(0);
+    expect(player.update(1_050).weights.aa).toBeCloseTo(0.5);
+    expect(player.update(1_250).jaw).toBe(1);
+    player.stop();
+    expect(player.update(1_100).ended).toBe(true);
+  });
+
+  it("rejects invalid tracks and duplicate channel timestamps", () => {
+    const player = new PerformancePlayer();
+    expect(() => player.play({ ...track, envelopeHopMs: 0 }, 0)).toThrow();
+    expect(() => player.play({ ...track, envelope: [NaN] }, 0)).toThrow();
+    expect(() =>
+      player.play({ ...track, visemes: [...track.visemes, ...track.visemes] }, 0),
+    ).toThrow();
   });
 });

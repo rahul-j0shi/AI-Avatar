@@ -1,9 +1,9 @@
 # 08 — Configuration & data
 
-## 1. Files (all in the OS config dir via `platformdirs`, e.g. `~/.config/svara/`)
+## 1. Files (XDG locations; defaults shown below)
 
 ```
-svara/
+~/.config/svara/                  # $XDG_CONFIG_HOME/svara
 ├── config.json              # features, providers, voice, ui, agent limits
 ├── permissions.json         # your rules (06)
 ├── permissions.local.json   # "Always allow" clicks (machine-written)
@@ -11,9 +11,11 @@ svara/
 ├── persona.md               # persona (07)
 ├── skills/<name>/SKILL.md   # skills (07)
 ├── avatar/avatar.json       # looks (03)
-├── avatar/models/*.vrm
-├── data/events.sqlite       # conversations + audit + metrics
-└── logs/core.log            # rotating
+└── avatar/models/*.vrm
+
+~/.local/share/svara/events.sqlite # $XDG_DATA_HOME/svara: conversations/audit/metrics
+~/.local/state/svara/logs/         # $XDG_STATE_HOME/svara: rotating logs
+~/.cache/svara/models/            # $XDG_CACHE_HOME/svara: downloaded weights
 ```
 
 JSON (not TOML/YAML) keeps one format everywhere: Monaco validates it natively with the JSON Schemas
@@ -73,8 +75,9 @@ equals the last applied one. That prevents double reloads.
 server, skill and tool group). "The user can turn any feature on and off" is thus a property of the
 loader, not a list someone has to keep complete.
 
-Writes are atomic (write temp + rename). Machine-written files (`permissions.local.json`, UI position)
-are separate from human-edited ones, so we never rewrite your comments.
+Writes are atomic (write temp + rename). Permission grants live in `permissions.local.json`.
+UI position lives in `config.json` under `ui.avatar.position` (F02); update only that field with
+comment-preserving edits and stale-version checks, just like panel changes.
 
 ## 4. Storage: SQLite event log
 
@@ -101,7 +104,7 @@ CREATE INDEX events_kind ON events(kind, ts);
   It is never stored twice.
 - WAL mode; writes go through one async writer task (a queue), so the event loop never blocks on disk.
 - Retention setting (default: keep forever; option: 30/90 days). *Clear history* is in Advanced.
-- Audio is **not stored** by default (a privacy default; optional debug toggle).
+- Microphone audio is **never stored** in v1 (F09/F32); there is no debug recording toggle.
 
 ## 4a. Versioning and migrations
 
@@ -138,12 +141,12 @@ CREATE INDEX events_kind ON events(kind, ts);
 | Silero VAD (onnx) | ~2 MB | Voice input. Small enough to **bundle** |
 | faster-whisper `small` (int8) | ~250–500 MB | Local STT (default) |
 | Kokoro timestamped ONNX (fp16) + voices file | ~163 MiB + voices | Local TTS (default), Tier A timing |
-| espeak-ng | few MB | G2P fallback, bundled as an executable (03 §4.7) |
+| espeak-ng | few MB | System executable installed as a declared `.deb` dependency (03 §4.7) |
 
 *The sizes are indicative; Spike C records the real numbers.*
 
 - Models are downloaded **on first use** from their official hosts (Hugging Face / GitHub
-  releases) into the OS cache dir (`platformdirs.user_cache_dir`), **pinned by exact revision and
+  releases) into `$XDG_CACHE_HOME/svara/models/` (default `~/.cache/svara/models/`), **pinned by exact revision and
   SHA-256**. The hashes live in a manifest in the repo, so a changed upstream file is detected and
   refused.
 - Progress is shown on the avatar ("Downloading voice… 42%") and in Configure (`model.download`

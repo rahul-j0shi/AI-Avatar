@@ -12,6 +12,10 @@ Implementation is currently in Phase 0. The previous browser-based proof of conc
 the `v0-prototype` Git tag. ADR-0006 selected Electron as the Ubuntu desktop shell after the measured
 Tauri/Electron comparison.
 
+Progress is paused at T0.10 for a [foundation audit](docs/reviews/2026-09-27-foundation-audit.md).
+It distinguishes implemented foundations, planned features and open gates. The only runnable desktop
+build today is a diagnostic spike—not the avatar-only product UI.
+
 ## Development
 
 The repository uses Node 24 with pnpm 12, uv-managed Python 3.14, and GNU Make. Install `uv`, then
