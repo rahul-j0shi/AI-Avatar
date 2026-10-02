@@ -1,7 +1,8 @@
 # 09 — Roadmap: from today to desktop v1
 
 Each phase ends with something that **runs and can be demoed**. The next phase doesn't start until
-the exit criteria are met. The order is chosen so the riskiest things (transparent WebGL window, lip
+the exit criteria are met, except the explicitly scheduled preview pull-forwards below. The order is
+chosen so the riskiest things (transparent WebGL window, lip
 sync quality, Python wheel support) are proven first.
 
 ## Portfolio-ready milestone
@@ -20,13 +21,17 @@ of Phase 4a (read-only tools):
 
 It is released as a GitHub pre-release. The README roadmap shows Phases 4b–7 and the extension as
 "next", which is honest and shows direction. Phase 7's README/demo tasks are pulled forward into
-this milestone.
+this milestone. The precise dependency graph in 13 also pulls T5.4 (remaining cloud speech adapters),
+T6.2 (looks/import), T6.4 (retention/export) and T6.6 (lifecycle/shortcuts) before preview, followed by
+T4.15 integration and T4.16 packaging. Publication needs explicit approval; local development is
+not blocked on publishing to GitHub.
 
 ---
 
 **Scope rule:** every task below implements features specified in [12](12-feature-specification.md).
 The task-level backlog with ids, dependencies and done-criteria is [13 §8](13-implementation-guide.md#8-ordered-backlog).
-A phase is done when its features' acceptance criteria pass. The v0.5 and v1 definitions of done are
+A phase is done when its assigned checks in 14 pass; a staged feature is not fully accepted until
+its later integration ACs pass. The v0.5 and v1 definitions of done are
 at the end of 12.
 
 ## Phase 0: Reset, foundations, spikes
@@ -70,12 +75,14 @@ Tasks
 - [ ] **Spike E (Claude subscription bridge):** on the dev machine with a logged-in Claude Code,
       run `claude-agent-sdk` with the 05 §3.2 settings. Confirm: no built-in tools are offered,
       `setting_sources=[]` loads nothing from `~/.claude`, one in-process MCP tool is callable,
-      partial-message streaming works, removing `ANTHROPIC_API_KEY` keeps subscription billing, and
-      the first-token latency is recorded. *Gate:* if any of these fails, the Anthropic API-key adapter
-      becomes the default Claude path and the finding goes in an ADR.
+      partial-message streaming works, the child environment excludes billing overrides, non-secret
+      auth provenance is recorded, and first-token latency is measured. *Gate:* isolation/auth failure
+      leaves the adapter pending; an API-key path requires explicit selection. Distribution policy
+      is a separate release gate (05 §3), not proved by a successful query.
 - [ ] Obtain the default avatar: export a CC0 VRoid preset as VRM 1.0 (03 §1); write
       `assets/LICENSES.md`.
-- [ ] Record the open questions still pending (extension pairing, resume) in the README.
+- [ ] T0.13 foundation exit: record all remaining gates and evidence (14 §2). Extension pairing and
+      resume direction are already decided; do not reopen them as missing decisions.
 
 **Exit:** CI green (24.04 + 26.04); spikes answered and written up in ADRs; default `.vrm` committed.
 
@@ -129,7 +136,7 @@ Tasks
       saccades, cursor gaze), state-driven poses (idle / thinking / acting / error).
 - [ ] Bubble (streaming text, auto-hide, "…more"), type-in box.
 - [ ] Conversations window (list + transcript from event log projections).
-- [ ] Tray icon (Show/Hide, Talk, Stop while busy, Configure, Quit) and opt-in Show/Hide shortcut as
+- [ ] Tray icon (Show/Hide, Talk, Type, Stop while busy, Configure, Quit) and opt-in Show/Hide shortcut as
       recovery paths (12 F01–F03); CLI actions work both from a running instance and cold start.
 - [ ] Configure window shell with *Models & accounts*, *Persona* and *Shortcuts* sections working;
       Show/Hide can be added now, while Stop/push-to-talk enable when their features land.
@@ -239,7 +246,7 @@ available for power users).
 ## Phase 7: Ship it as a portfolio project
 
 Tasks
-- [ ] Package the core with PyInstaller (or Nuitka) as a sidecar, built on Ubuntu 24.04 for glibc
+- [ ] Package the core with PyInstaller as a sidecar, built on Ubuntu 24.04 for glibc
       compatibility. The primary artefact is a **`.deb`** for Ubuntu 24.04 and 26.04, with declared
       dependencies (`espeak-ng`, `pipewire-bin`, `xdg-utils`, `libglib2.0-bin`). Electron and
       Chromium ship inside the package. AppImage is optional; both formats force Electron's X11
@@ -256,7 +263,8 @@ Tasks
       licence and source pointer; asset licences.
 - [ ] Measure and publish: installer size, idle RAM/CPU, RAM with local models, cold start, latency
       p50/p95.
-- [ ] Smoke test on clean Ubuntu 24.04 and 26.04 installs (a VM + one real machine with NVIDIA):
+- [ ] Smoke test on clean Ubuntu 24.04 and 26.04 Wayland installs (primary Intel/AMD machine + VM;
+      NVIDIA remains best-effort and is labeled untested if unavailable):
       install → onboard → voice turn → tool with approval → documented complete-removal flow leaves
       no process, user data, autostart entry, shortcut or package file behind.
 

@@ -6,6 +6,8 @@ remain open. Re-run this review at the end of every phase.
 
 “Covered” and “Fixed in” below mean addressed **in the design**, not built or verified. Actual
 progress and F01–F40 ownership are in the [foundation audit](../reviews/2026-09-27-foundation-audit.md).
+The completed planning handoff is [15](15-developer-handoff.md); the current per-AC ownership and
+cross-feature test ledger is [14](14-acceptance-and-integration.md). All R1–R38 remain represented.
 
 ## 1. Requirements traceability
 
@@ -144,17 +146,24 @@ progress and F01–F40 ownership are in the [foundation audit](../reviews/2026-0
 | G73 | “Minimise” was undefined for a frameless, skip-taskbar avatar, and Hide only had a 30-minute form | Medium | 02 §3/§3.1 and 12 F02: indefinite hide-to-tray plus tray/hotkey/CLI restore |
 | G74 | Keyboard/CLI controls did not define cold-start behaviour or a Show/Hide shortcut | Medium | 01 §3a; 02 §1.2/§3.1; 12 F01 AC6–7 |
 | G75 | “Turn down/off/remove” was spread across unrelated features and output volume was missing | Medium | 02 §3.1 control matrix; 08 §2; 12 F03/F11/F12/F38; 13 §6/§8 |
+| G76 | Cyclic/vague dependencies and premature whole-feature AC claims | High | 13 explicit DAG, integration tasks; 14 per-AC owners |
+| G77 | Preview required speech/import/retention work assigned to later phases | High | T5.4/T6.2/T6.4/T6.6 explicit pull-forwards, T4.15/T4.16 |
+| G78 | Coqui conflicted with the lightweight no-PyTorch runtime | Medium | User removed Coqui from v1 on 2026-10-02; F12/04/13 aligned |
+| G79 | No playback credit/progress, management operation or transfer contract | High | 13 §7.4; 14 X09/X10/X13–X17 |
+| G80 | Hide/mute/pause/reconnect/approval interactions were unspecified | High | 12 F02/F20; 14 §3/X01–X12 |
+| G81 | Provider capability assumptions and successful login treated as distribution permission | High | 05 capability rules and separate technical/policy gate; 14 G-SUBSCRIPTION |
+| G82 | No precise developer starting point or per-task evidence handoff | High | 15 current-state map, first package, module/test map and template |
 
 ## 3. Risk register (what can still go wrong)
 
 | Risk | Likelihood | Impact | Mitigation / trigger |
 |------|-----------|--------|----------------------|
 | Electron's avatar renderer exceeds the idle CPU/RAM budgets measured in the diagnostic harness | High | High | Keep the avatar-only production surface lean; profile and gate it in Phase 2/3; measurements in T0.6 / ADR-0006 |
-| A future GNOME update changes XWayland always-on-top or positioning behaviour | Low–Medium | High | Spike D documents current behaviour; watch GNOME release notes; fallback: a small GNOME Shell extension that pins the window |
+| A future GNOME update changes XWayland always-on-top or positioning behaviour | Low–Medium | High | G-PRESENCE blocks acceptance on failure; a GNOME extension is an explicit new-scope decision, not an automatic fallback |
 | Portal consent is not remembered on one release (repeated dialogs) | Medium | Medium | Restore tokens / permission store; if it isn't remembered, screenshots and computer use stay opt-in with a clear explanation |
 | PipeWire echo-cancel drop-in conflicts with the user's audio setup | Low–Medium | Medium | Opt-in, one-click revert (remove the drop-in), headphones fallback |
-| Echo cancellation is too weak for barge-in on laptop speakers | Medium | Medium | PipeWire WebRTC AEC first; then headphones-only barge-in or duck-and-gate; the feature can be toggled |
-| Kokoro gives no usable timing | Low–Medium | High | Tier B via cloud TTS, or Tier C forced alignment moves into Phase 3b |
+| Echo cancellation is too weak for barge-in on laptop speakers | Medium | Medium | AEC then documented duck-and-gate; headphones recommendation does not pass F13's speaker AC; scope changes require approval |
+| Kokoro gives no usable timing | Low–Medium | High | Evaluate existing Tier B/D paths; Tier C requires an approved dependency/license ADR, not silent new scope |
 | Lip sync looks "off" despite correct data | Medium | High | Lip-sync lab + tuning parameters (lookahead, attack/release) in `avatar.json`; vrm-basic fallback |
 | Anthropic changes subscription terms again | High | Medium (subscription is now the default Claude path) | Same adapter layer has the API-key path; switching is one config value; Spike E gate; re-check terms before any public release |
 | Rendering or driver problems on 26.04 or NVIDIA that the dev machine can't reproduce | Medium | Medium | VM functional checks for 26.04; NVIDIA documented as best-effort with the env workaround; community bug reports triaged post-release |

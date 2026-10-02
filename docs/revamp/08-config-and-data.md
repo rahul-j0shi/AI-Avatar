@@ -36,7 +36,7 @@ we generate from the pydantic models. Comments are allowed (JSONC) and parsed wi
   },
   "version": 1,
   "llm":  { "provider": "claude_subscription", "model": null, "effort": "low", "visionModel": null,
-            "fallback": { "provider": "local", "model": "<an installed Ollama model>" } },
+            "fallback": null },
   "providers": {
     "claude_subscription": { "adapter": "claude_subscription" },          // your logged-in Claude Code (05 §3)
     "openrouter": { "adapter": "openai_compat", "baseUrl": "https://openrouter.ai/api/v1", "apiKey": {"secret": "openrouter"} },
@@ -108,7 +108,8 @@ CREATE INDEX events_kind ON events(kind, ts);
 
 ## 4a. Versioning and migrations
 
-- Every config file has `"version"`. On startup the loader runs ordered migration functions
+- JSONC files carry `"version"`, except the unchanged Claude-compatible MCP envelope. Markdown and
+  MCP schema migrations are tracked by the app (13 §6.2). On startup the loader runs ordered migration functions
   (`v1 → v2 …`), writes a backup (`config.json.bak-v1`) first, and then writes the migrated file. It
   never silently drops unknown keys: they are kept, and a warning is shown.
 - SQLite uses `PRAGMA user_version` with numbered migration scripts, applied in a transaction at
@@ -116,8 +117,9 @@ CREATE INDEX events_kind ON events(kind, ts);
 - **First run:** if no config dir exists, the core writes commented default files (read-only
   permissions, local STT/TTS, no LLM provider yet) and the shell opens onboarding (Phase 6). Before
   Phase 6, the Models section of Configure is enough.
-- **Export / import:** Advanced → *Export settings* zips all config files, persona and skills (never
-  secrets and never the DB), which makes it easy to move machines or share a setup.
+- **Export / import:** Advanced exports portable config, persona and skills (never secrets, DB,
+  machine grants/shortcuts or absolute asset paths). Import previews/validates, confirms, backs up,
+  and leaves imported skills disabled. Archive limits and safe extraction are defined in 14 §3.3.
 
 ## 5. Data structures used on purpose
 

@@ -128,7 +128,7 @@ class PerformanceSegment:
     visemes: tuple[VisemeKey, ...] # sorted by t_ms
     envelope: bytes                # RMS per 10 ms, u8 (100 values per second)
     cues: tuple[Cue, ...]          # sorted by t_ms
-    word_spans: tuple[tuple[int, int, int], ...]  # (t_ms, char_start, char_end) to highlight spoken words
+    word_spans: tuple[tuple[int, int, int, int], ...]  # (start_ms, end_ms, char_start, char_end)
 ```
 
 **Delivery rule (v1): one segment = one fully synthesised sentence.** The core sends the sentence's
@@ -154,7 +154,7 @@ Each TTS adapter declares what alignment it can provide. The engine uses the bes
 |------|--------|----------|---------|
 | A | **Phoneme timings** from the TTS itself | Kokoro (`pred_dur` from the timestamped ONNX export, §4.8), Azure TTS viseme events | Best |
 | B | **Word or character timings** + our G2P | ElevenLabs `with-timestamps` (character alignment), Cartesia (word timestamps) | Good |
-| C | **Text only**, then G2P + forced alignment against the audio | OpenAI TTS, Coqui | Good; costs CPU |
+| C | **Text only**, then G2P + forced alignment against the audio | Possible future OpenAI TTS path | Good; costs CPU; not a v1 adapter promise |
 | D | **Audio only**: spectral vowel estimation (formant/MFCC-based), computed **in the core** over the finished sentence audio, so it uses the same data model | Anything, including raw audio | Fallback: vowels only, no closures |
 
 Tier C uses a small aligner (e.g. a CTC phoneme model through onnxruntime) and only runs if Tier A/B

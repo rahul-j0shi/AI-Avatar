@@ -55,10 +55,15 @@ Paired mode comes first because it reuses 100% of the core.
 - Permissions are capability strings, not hard-coded desktop concepts (06 §3).
 - `apps/extension/README.md` exists with a short version of this document and a link here.
 
-## 5. Rough milestones (post v1)
+## 5. Follow-up milestones (post-v1, not desktop implementation tasks)
 
-1. Native host + pairing + `hello` from a Manifest V3 extension; text chat in the side panel.
-2. Read-only browser tools (`tabs.list`, `read_page`, `screenshot`) with per-site grants.
-3. Action tools (navigate, click, type) with ASK and the blocklist.
-4. In-page avatar overlay with voice (mic via the extension's offscreen document).
-5. Standalone mode investigation.
+| Milestone | Depends on | Exit evidence |
+|---|---|---|
+| E1 native host/pairing/text side panel | Released desktop v1 and separately approved extension scope | Wrong extension ID, expired/incorrect code and revoked key fail; correct pairing chats with the same core. Write protocol/auth/permission threat model before implementation |
+| E2 read-only browser tools | E1 | `tabs.list`, `read_page`, `screenshot` honor site grants, exclude blocked sites, mark page text untrusted; disconnect removes every registered tool |
+| E3 action tools | E2 | Navigate/click/type require ASK on new sites, respect high-risk blocklist, revalidate target tab/origin after navigation, and Stop prevents the next action |
+| E4 avatar + voice | E3 | One active audio surface, explicit handoff, no duplicate speech or mic; overlay removal cleans resources; reused player passes desktop timing fixtures |
+| E5 standalone investigation | E4 | ADR and separate scope/acceptance proposal for cloud-only runtime; no implied full Python-core port or subscription-login support |
+
+Native-host installation, extension keys, browser-site permissions and new surface authentication
+ship only in this follow-up, not desktop v1. Recheck browser packaging/API support when E1 starts.

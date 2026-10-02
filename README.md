@@ -7,12 +7,15 @@ of its speech and lip-sync pipeline.
 The implementation plan is in [`docs/revamp/`](docs/revamp/README.md). The authoritative v1 scope is
 [`docs/revamp/12-feature-specification.md`](docs/revamp/12-feature-specification.md), and the ordered
 implementation backlog is [`docs/revamp/13-implementation-guide.md`](docs/revamp/13-implementation-guide.md).
+Developers should start with the [current-state handoff](docs/revamp/15-developer-handoff.md) and
+[acceptance/integration ledger](docs/revamp/14-acceptance-and-integration.md).
 
 Implementation is currently in Phase 0. The previous browser-based proof of concept is preserved in
 the `v0-prototype` Git tag. ADR-0006 selected Electron as the Ubuntu desktop shell after the measured
 Tauri/Electron comparison.
 
-Progress is paused at T0.10 for a [foundation audit](docs/reviews/2026-09-27-foundation-audit.md).
+Development resumes with the remaining T0.10/T0.8 gates from the
+[foundation audit](docs/reviews/2026-09-27-foundation-audit.md), not the next product feature.
 It distinguishes implemented foundations, planned features and open gates. The only runnable desktop
 build today is a diagnostic spike—not the avatar-only product UI.
 

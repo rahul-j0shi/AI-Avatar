@@ -83,8 +83,7 @@ class TextToSpeech(Protocol):
 | TTS | **Kokoro-82M** (default) | Local | Apache-2.0, fast on CPU. Our own onnxruntime runner on the timestamped export gives Tier A alignment (03 §4.8) |
 | TTS | ElevenLabs | Cloud | Streaming + character timestamps (Tier B) |
 | TTS | Azure Speech | Cloud | Viseme events (Tier A), many languages |
-| TTS | OpenAI TTS | Cloud | No alignment → Tier C/D |
-| TTS | Coqui (`coqui-tts`, the maintained idiap fork) | Local | Optional. Coqui the company closed in 2024, and XTTS weights are under a non-commercial licence |
+| TTS | OpenAI TTS | Cloud | No alignment → Tier D in v1; Tier C is a gated future option |
 
 Each adapter is a plugin that `provide`s `stt` or `tts`. Only one of each is active at a time, chosen
 in config. There is a **shared contract test suite**: every adapter must pass the same tests against
@@ -128,6 +127,10 @@ Kokoro + Ollama (a local LLM) with no network at all. It is documented and teste
 
 Every turn records stage timestamps in the event log. The Advanced panel shows p50/p95. The README
 publishes the numbers, which are concrete and credible portfolio evidence.
+
+These are individual ceilings, not an additive proof of the 2 s end-to-end target: adding the
+ceilings exceeds it. Both component and complete-path measurements must pass independently, using
+the warm/cold runs in 14 §5. No measured miss is waived by this planning checkpoint.
 
 ## 6. Later
 

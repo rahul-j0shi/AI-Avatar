@@ -15,6 +15,10 @@ This one says *exactly what* each feature does, where it stops, and how we know 
    before.
 5. "Configurable" means a key in a config file (08) that the Configure panel also exposes, unless it
    says "file-only".
+6. [14 — Acceptance and integration plan](14-acceptance-and-integration.md) assigns every AC to a
+   task and test ID, and specifies cross-feature behavior. Its additional regression cases cover
+   the Behaviour, Limits and Errors sections too; passing only the numbered ACs is insufficient.
+   Feature dependencies below describe runtime relationships, not build order; use 13's task DAG.
 
 **Feature template:** Purpose · Behaviour · In scope · Out of scope · Config & defaults · Limits ·
 Errors & edge cases · Depends on · Phase · Acceptance criteria.
@@ -50,6 +54,7 @@ Errors & edge cases · Depends on · Phase · Acceptance criteria.
 | Third-party Python plugins | Post-v1 (01 §3) |
 | MCP resources, prompts, sampling, elicitation, OAuth | Post-v1; v1 is MCP *tools* only |
 | Auto-update | Users install a newer `.deb` |
+| Coqui TTS / a second speech runtime | Removed from v1 by user decision on 2026-10-02; Kokoro and the three planned cloud voices remain |
 | Snap / Flatpak packaging | Sandboxes block the desktop tools |
 | UI translation, custom themes | English UI; follows the OS light/dark setting |
 | Offering a claude.ai login inside the app | Not allowed by Anthropic (05 §3) |
@@ -205,6 +210,9 @@ shutdown completes ≤ 5 s.
   tray *Show*, the Show/Hide shortcut, `svara`, `--action show` or `--action toggle`.
 - **Hide for 30 min:** the same hidden state with a timer. It returns after 30 min or by any restore
   path above.
+- Hiding closes any mic capture (discarding an unfinished utterance) and disables barge-in while
+  hidden. Already-playing speech may continue; Hide is not Stop. A pending approval retains its
+  deadline and denies on timeout. Timer/restore semantics are in 14 §3.1.
 - **Show on all workspaces:** the avatar is visible on every GNOME workspace (sticky).
 - **Frame rate:** 30 fps when idle and not hovered, 60 fps while speaking, 0 fps while hidden.
 - `prefers-reduced-motion` → sway and bounce are disabled; blinking and lip sync remain.
@@ -269,7 +277,7 @@ holds 60 fps.
 | Show on all workspaces | always | toggles F02 workspace behaviour |
 | Quit Svara | always | fully exits (F01) |
 
-**Tray (AppIndicator):** Show/Hide · Talk · Stop (while busy) · Configure · Quit Svara.
+**Tray (AppIndicator):** Show/Hide · Talk · Type a message… · Stop (while busy) · Configure · Quit Svara.
 
 **In scope:** the items above, keyboard shortcuts shown in the menu, the tray.
 
@@ -375,7 +383,7 @@ refusal text.
 
 **Purpose.** Talk by typing.
 
-**Behaviour.** Opened from the menu "Type a message…" or the tray. A
+**Behaviour.** Opened from the avatar menu or tray "Type a message…". A
 single-line field under the avatar that grows to 4 lines. Enter sends, Shift+Enter adds a newline,
 Esc closes. On send the box closes, and the input goes to F20 as `input.text`. The window becomes
 focusable only while the box is open (F02).
@@ -459,7 +467,7 @@ reload?".
 | Features | the 0.4 flag table as switches, plus every plugin's status (active / pending: reason / failed: reason / disabled) with *Retry* |
 | Shortcuts | F01/F02/F27/F09: Show/Hide, Stop and push-to-talk bindings (GNOME custom shortcuts), add/change/remove; explains that Show/Hide and Talk also start Svara |
 | Privacy | F34: the live "what leaves this machine" table |
-| Advanced | logs, diagnostics bundle (F36), latency overlay toggle, model downloads (F33), history retention/clear (F32), settings export/import, open config folder, lip-sync lab (F18), reset settings, **Remove my Svara data and integrations** (F38) |
+| Advanced | schema-backed `config.json` editor for remaining settings (agent limits, language maps, etc.), logs, diagnostics bundle (F36), latency overlay toggle, model downloads (F33), history retention/clear (F32), settings export/import, open config folder, lip-sync lab (F18), reset settings, **Remove my Svara data and integrations** (F38) |
 
 **Out of scope:** a settings search box; per-section undo history (the file is the source of truth;
 use export for backups); remote configuration.
@@ -491,6 +499,9 @@ features land), 6 (the rest and final shortcut polish).
 - **VAD:** Silero (ONNX model via onnxruntime; no PyTorch). Speech starts after ≥ 200 ms of voice probability above the threshold. Speech ends
   after `endSilenceMs` of silence.
 - One utterance = one turn. Continuous conversation mode is out of scope.
+- "Push-to-talk" in this plan means **press once to start, press again to stop**, not hold-to-talk.
+  GNOME custom shortcuts invoke a command, not key-release events. Configure labels it "Talk
+  (press to toggle)" and explains this; there is no background idle microphone for pre-roll.
 
 **In scope:** the above; mic source selection; the mute toggle (F03).
 
@@ -530,6 +541,8 @@ for > 500 ms (logged).
 providers also emit partials to the ghost line. The final transcript starts the turn. A noise
 filter drops transcripts that are empty, under 2 characters, or below the confidence threshold
 (when the provider reports one).
+The threshold is 0.5 on normalized 0–1 confidence; missing confidence is not interpreted as zero.
+Adapters document their score conversion, and noise fixtures cover providers without a score.
 
 **In scope (adapters):** `faster_whisper` (local, default, model `small`, int8, CPU), `deepgram`
 (cloud, streaming), `google_stt` (cloud, v2), `openai_stt` (cloud). Language auto-detect by default.
@@ -601,7 +614,7 @@ detected).
   playback/performance clock.
 
 **In scope (adapters):** `kokoro` (local, default, our onnxruntime runner on the timestamped export, 03 §4.8), `elevenlabs` (cloud),
-`azure_tts` (cloud), `openai_tts` (cloud), `coqui` (local, optional, the maintained `coqui-tts` fork).
+`azure_tts` (cloud), `openai_tts` (cloud).
 The voice, speed (0.7–1.3) and `voicesByLanguage` map (03 §4.6).
 
 **Out of scope:** voice cloning; SSML authoring; per-sentence emotion prosody control; sub-sentence
@@ -883,8 +896,8 @@ tools), 5 (`gemini`).
   enforce permissions inside the handlers.
 - **Step limit reached:** the assistant says it stopped after N steps and asks whether to continue;
   saying or typing "continue" starts a new turn.
-- Tool calls within one step run concurrently, except calls that need approval, which run one at a
-  time.
+- Independent read calls within one step may run concurrently. Mutating calls and approvals run
+  one at a time, with permissions revalidated immediately before execution (14 §3.2).
 
 **In scope:** the above; `maxSteps`, `turnTimeoutSec`, token caps.
 
@@ -917,6 +930,10 @@ exception is returned to the model as an error result, not a crash.
   *New conversation*, or via F07.
 - Context strategy per adapter (05 §2): server compaction + tool-result clearing for `anthropic`,
   windowing for others, Claude Code's own management for the subscription.
+- Capabilities are checked for the selected model. If a context-management operation is unavailable
+  or fails, stop **before** an over-budget request, retain the conversation, and offer *New
+  conversation*. Never silently drop Anthropic history or switch to a billable provider. The
+  300-turn test covers both supported compaction and this safe limit outcome.
 - Volatile facts (date/time, and the focused app when F25 app tools are on) go into the turn, not
   the system prompt (07 §4).
 
@@ -933,7 +950,9 @@ resuming an older conversation; importing chats from elsewhere.
 
 **AC.**
 1. After 31 idle minutes the next message starts a new conversation (visible in F07).
-2. A 300-turn scripted conversation never exceeds the context budget on any adapter.
+2. A 300-turn scripted conversation never sends a request exceeding the context budget on any
+   adapter; supported compaction/windowing continues, and an unavailable context strategy produces
+   the explicit retained-history limit outcome above, not a malformed request.
 3. For `anthropic`, the request log shows no edited earlier messages (the append-only check).
 
 ---
@@ -1102,6 +1121,7 @@ installation.
 - The Stop shortcut (F27).
 - A blocklist of focused apps where input is always denied: password managers, GNOME Settings,
   terminals, and our own Configure window.
+- Unknown/unavailable focused-app identity denies input too; losing the portal grant ends control.
 - Every action is logged with a thumbnail.
 
 **In scope:** the above, behind `features.computerUse`.
@@ -1139,7 +1159,9 @@ Shortcuts.
 
 **Phase:** 4.
 
-**AC.** Pressing the shortcut mid-tool-loop → no further tool call is logged after the press.
+**AC.** Pressing the shortcut mid-tool-loop → no new tool execution starts after cancellation is
+received, within the 300 ms key-to-stop bound. Completion/audit records for already-started actions
+are retained and labeled; Stop does not pretend to undo them.
 
 ---
 
@@ -1482,6 +1504,8 @@ from outside the built-in registry; nested isolated contexts.
 **In scope:** the v1 message catalogue and payloads in 13 §7 (overview in 01 §4); the token handshake; topics; `snapshot`; reconnect;
 the binary audio framing; the `/assets` route; protocol version integer; pydantic → TS type
 generation with a CI drift check.
+The management operations and playback acknowledgements in 13 §7.4 are part of this catalogue.
+The extension surface and microphone-upload shapes are reserved, rejected in desktop v1.
 
 **Out of scope:** remote (non-loopback) connections; multiple users; any message not in the
 catalogue; streaming video.

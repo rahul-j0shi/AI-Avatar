@@ -24,6 +24,9 @@ Consequences:
 - Subscription access depends on upstream policy and official login state, so failure leaves the
   plugin pending and preserves the API-key path.
 - The app has no user account; provider authentication never becomes Svara identity.
+- Planning clarification (2026-10-02): readiness queries require explicit usage consent; removing
+  environment keys alone is not billing proof. Technical isolation and permission to distribute
+  subscription access are separate gates in 05 §3 / 14 §2. No automatic API-key fallback.
 
 Evidence:
 - T0.11 verifies login isolation, streaming, tool exposure, and the subscription gate.

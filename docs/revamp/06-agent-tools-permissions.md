@@ -29,8 +29,9 @@ async def run_turn(ctx, conversation, user_msg) -> None:
   future that resolves when the user clicks Allow/Deny in the bubble (or on a timeout, which means
   deny). asyncio makes this trivial, and it is the main reason people reach for LangGraph
   "interrupts". Our loop doesn't need them.
-- Independent tool calls in one step run concurrently (`TaskGroup`). Calls that need approval are
-  serialised so only one approval bubble shows at a time.
+- Independent read calls in one step may run concurrently (`TaskGroup`). Mutating calls serialize;
+  approvals serialize so only one approval bubble shows at a time. Revalidate canonical arguments
+  and permissions immediately before execution (14 §3.2); all results still form one step message.
 - **Why not LangGraph:** it adds a graph DSL, a checkpointer and a dependency for a loop that is about
   30 lines. If multi-step *planning* with persistence is ever needed (e.g. long background tasks), it
   can come in later as an alternative `agent` plugin without touching anything else. (Resume note:

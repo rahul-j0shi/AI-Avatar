@@ -180,7 +180,7 @@ the permission model.
 |---------|----------|
 | Environment | Electron forces the avatar window through XWayland with `--ozone-platform=x11` (02 §1.2) |
 | CLI actions | `svara --action talk \| stop \| show \| hide \| toggle \| mute-mic \| pause-voice \| configure \| quit` and `svara --volume 0..100`. `talk`, `show`, `toggle` and `configure` cold-start the app when needed; otherwise actions forward to the running instance. `stop`, `hide` and `quit` are harmless no-ops when it is not running. GNOME custom shortcuts call this contract (02 §1.2, §3.1) |
-| Start | The Electron main process generates a random 256-bit token and spawns the core sidecar with it in an env var (`SVARA_TOKEN`). The core binds `127.0.0.1:0` and prints one JSON line `{"port": N, "pid": P, "protocol": 1}` on stdout. The main process reads it and gives port + token to approved renderer windows through the context-isolated preload bridge, never in a URL |
+| Start | Main generates a random 256-bit `SVARA_TOKEN` for the sidecar. Core binds `127.0.0.1:0` and prints `{"port": N, "pid": P, "protocol": 1}`. Main keeps the port/token and owns surface WS connections; renderers receive only a typed, sender-checked preload API (13 §7.4), never the token or a raw send function |
 | Readiness | The shell shows the avatar in a `booting` state until the core answers `hello`. Core startup target: under 1.5 s to `hello`. Heavy models load lazily (below) |
 | Orphans | The core exits when its stdin closes (the shell holds the pipe), so a crashed shell never leaves a zombie core |
 | Crash | If the core exits unexpectedly, the shell restarts it with backoff (1 s, 2 s, 5 s, then stop and show "Core stopped: View logs / Restart") |
@@ -197,7 +197,9 @@ in Phase 3 and published.
 
 ## 4. Protocol
 
-- **Transport:** one WebSocket per surface window at `ws://127.0.0.1:<port>/ws`. The port is random
+- **Transport:** one shell-owned WebSocket per surface at `ws://127.0.0.1:<port>/ws`. Renderers use
+  a narrow typed preload bridge; main keeps the token and enforces surface permissions (13 §7.4).
+  The port is random
   (see 3a). The token must be the first message on every connection, and connections without it are
   rejected. The core binds only to loopback.
 - **Framing:** text frames carry JSON messages `{ "type": "...", "id"?: "...", ...payload }`. Binary
@@ -210,7 +212,7 @@ the overview:
 
 | Direction | Type | Purpose |
 |-----------|------|---------|
-| surface → core | `hello` | surface kind (`desktop.avatar`, `desktop.panel`, later `extension`), capabilities, protocol version |
+| surface → core | `hello` | surface kind (`desktop.shell`, `desktop.avatar`, `desktop.conversations`, `desktop.configure`; reserved `extension`), capabilities, protocol version |
 | surface → core | `input.text` | Typed message |
 | surface → core | `listen.start` / `listen.stop` | Double-click / push-to-talk: start or stop listening. On the desktop the core captures the mic itself |
 | surface → core | `input.audio.begin` / binary PCM / `input.audio.end` | *Reserved for surfaces that capture the mic themselves (the browser extension):* 16 kHz mono s16le, 20 ms frames |
@@ -237,14 +239,15 @@ the overview:
 
 **Routing.** Each connection says in `hello` which *topics* it wants. The avatar window subscribes to
 `turn` (state, transcript, deltas, performance, tool activity, permission requests). Conversations
-subscribes to `conversation`. Configure subscribes to `config` and `plugin`. Only the avatar surface
-receives `performance.*` and audio. Mic audio comes from the core's own `mic` plugin on the desktop. If two surfaces
-claim the avatar role (later: desktop + extension overlay), the most recently *focused* one gets
-performance output, and the other shows the text only.
+subscribes to `conversation`. Configure subscribes to `config` and `plugin`. Only the avatar receives
+live-turn audio. An explicit Configure voice/lab preview uses its own isolated preview ID and cannot
+overlap a live turn. Mic audio comes from the core's `mic` plugin. v1 authorizes one avatar, not
+self-declared competing surfaces; future extension arbitration belongs to 10.
 
 **Reconnect.** The WS client reconnects with backoff. On reconnect it gets a fresh `snapshot`. If the
-avatar surface was disconnected mid-turn, the core cancels the running performance (audio can't be
-resumed) but keeps the text and tool results, so nothing is lost from the conversation.
+avatar surface was disconnected mid-turn, stop local playback immediately and cancel the core turn,
+mic and pending approvals. Keep partial text and completed tool results; never replay audio or
+effects on reconnect. Snapshot restores UI state, not an executable work queue (14 §3).
 
 **Hardening.** Bind to loopback only. Require the token as the first message (not a query string, so
 it never lands in logs). The Electron main process serves packaged assets through a privileged
@@ -254,11 +257,13 @@ Limit frame size to 1 MB and apply a per-connection message rate limit. The conf
 with user-only permissions (0700 on POSIX).
 
 **Asset serving.** The core also serves `GET /assets/<path>` (token in the `Authorization` header,
-read-only, rooted at the config dir's `avatar/` folder) so any surface, desktop or future extension,
-loads `.vrm`/`.vrma` files the same way.
+read-only, rooted at bundled assets and the config dir's `avatar/` folder). Main proxies this to
+the renderer's application asset scheme without exposing the token. Reject traversal, escaping
+symlinks and remote asset URLs. 13 §7.4 separately defines bounded import/export transfer routes.
 
-**Protocol versioning.** `hello.protocol` is an integer. The core accepts the current and previous
-version. Anything else gets a clear `error` ("update the extension/app").
+**Protocol versioning.** `hello.protocol` is an integer. v1 accepts only version 1; there is no
+deployed version 0. Compatibility with a previous deployed version is a future migration decision.
+Anything else gets a clear `error` ("update the extension/app").
 
 **Avatar/assistant state machine** (owned by the core; surfaces only render it):
 

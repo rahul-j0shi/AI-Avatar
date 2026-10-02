@@ -26,4 +26,6 @@ Consequences:
 Evidence:
 - [Features F20 and F21](../revamp/12-feature-specification.md#f20--agent-turn--loop) define turn and
   context acceptance criteria.
-- T1.12 implements the loop, context strategy, retries, and fake-provider tests.
+- T1.12 implements the text turn/context/retry harness; T4.0 integrates the tool loop and permission
+  engine. Independent reads may run concurrently; mutations and approvals serialize. Unsupported
+  Anthropic compaction uses F21's explicit context-limit outcome, never local history rewriting.

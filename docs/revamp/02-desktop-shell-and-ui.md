@@ -33,10 +33,10 @@ focus/clipboard behavior must not be promised until their interactive matrix pas
 | **Position + always-on-top + drag** | The **avatar window runs through XWayland** (Electron forces `--ozone-platform=x11`). Mutter honours EWMH hints for X11 clients (`_NET_WM_STATE_ABOVE`, move requests, native app-region drag) | That Mutter 46 and 50 keep an XWayland window on top and at our position, and that drag works |
 | **Click-through on transparent areas** | Apply Electron `BrowserWindow.setShape()` to the avatar silhouette box, bubble and popovers. Clicks outside the native shape pass through. **No cursor polling**, which wouldn't work anyway: under XWayland the global cursor position is stale while the pointer is over Wayland-native windows | That the shape updates cleanly when the bubble appears or disappears |
 | **Global hotkeys** (Show/Hide, Stop, push-to-talk) | Portable path for 24.04 *and* 26.04: register **GNOME custom keyboard shortcuts** (gsettings `custom-keybindings`) that run `svara --action toggle` / `--action stop` / `--action talk`. `toggle` and `talk` start Svara when it is not already running; otherwise the single-instance plugin forwards the action. Shortcuts are opt-in, rebindable and removable in Configure. The GlobalShortcuts portal (26.04) is a later improvement | Cold-start and running-instance behaviour; hotkey → action latency (< 200 ms after the app is ready) |
-| **Screenshots of other apps** | **xdg-desktop-portal Screenshot** (`interactive=false`) through D-Bus from the core. GNOME asks the user once and remembers the grant in its permission store. An XWayland app using `mss` would only see X11 windows | Whether GNOME 46 and 50 remember the grant, and the capture latency |
+| **Screenshots of other apps** | **xdg-desktop-portal Screenshot** (`interactive=false`) through D-Bus from the core. Handle first/repeated consent and denial; grant persistence is measured, not promised. An XWayland app using `mss` would only see X11 windows | Whether GNOME 46 and 50 remember the grant, and the capture latency |
 | **Input control (computer use)** | **xdg-desktop-portal RemoteDesktop** (with ScreenCast for the screen), with `persist_mode` so the user consents once per grant. No `ydotool`/uinput (that needs root-level device access) | The consent flow and restore-token reuse on both releases |
 | **Window list / active app / focus** | **AT-SPI** accessibility bus, spoken over D-Bus with `dbus-fast` (no PyGObject: it has no wheels and is awkward to bundle), which works on Wayland for GTK/Qt/Chromium/Electron apps. "Focus app X" = re-launch its `.desktop` entry (`gio launch`); GNOME brings a running single-instance app to the front. Arbitrary window raising is not possible on Wayland and is documented as a limitation | Coverage of common apps (Firefox, Chrome, VS Code, Files, Terminal) |
-| **Clipboard** | Wayland only lets the **focused** client read the clipboard. `clipboard.read` works right after the user interacted with the avatar (it has focus). Otherwise the tool returns "copy the text, then click me" instead of failing silently. `clipboard.write` works | Read/write from the XWayland avatar window |
+| **Clipboard** | If the compositor requires focus, use the explicitly focused Type/approval interaction; idle avatar clicks must remain non-focus-stealing. Otherwise return "Copy the text, then open Type and try again". Do not claim a focusless read works | Read/write, denied/unfocused cases from the XWayland interaction surface |
 | **Fractional scaling** | XWayland windows can look blurry at 125%/150% scaling. Supported, tested setups: 100% and 200%. Fractional is best-effort, and a known limitation in the README | Visual check at 100/150/200% |
 | **Tray icon** | Electron `Tray` + native `Menu`; Ubuntu's AppIndicator extension exposes it | — |
 | **Launch at login** | The Electron main process creates/removes `~/.config/autostart/svara.desktop` after explicit opt-in | — |
@@ -148,7 +148,8 @@ request; they are never embedded beside the avatar.
   for the type box or an approval. The native mechanism is unresolved: T0.10 found that constructing
   Electron with `focusable:false` changed X11 window management and later focus requests did not
   establish the expected active-window state. Keep this an opt-in probe, not a production solution.
-  Prove above/drag/typing together on Wayland before choosing the implementation; do not change the
+  The bounded candidate order and failure decision are G-PRESENCE in 14 §2. Prove
+  above/drag/typing together on Wayland before choosing the implementation; do not change the
   avatar-only UX to accommodate the experiment. Returning prior focus is best-effort.
 - **Double-click → listen.** Toggles listening. The avatar shows a *listening* state (pose, glow, ear
   cue). A second double-click, a VAD end-of-speech or Esc stops it.
@@ -174,19 +175,22 @@ request; they are never embedded beside the avatar.
   button, "minimise" means hide the avatar window while Svara remains available from its tray icon.
   Restore it with tray *Show*, the Show/Hide shortcut, `svara`, `svara --action show`, or
   `svara --action toggle`. Hiding stops rendering (0 fps) but does not cancel a running turn.
+  It does close the mic: discard an unfinished listening capture and disable barge-in while hidden.
+  Speech may continue without render frames; a hidden approval still times out to Deny. See 14 §3.
 - **Size:** `ui.avatar.scale` (0.5–2.0) resizes the window and the framing together. The window
   size is derived from the scale; it is not a fixed 360×480.
 - **Visual states** so the user always knows what it's doing: listening (mic glow; the mic is
   *only* open while this glow or the speaking state with barge-in is on), thinking, speaking, acting
   (tool chip), awaiting approval (bubble), error (bubble + brief `sad`), booting/core down (greyed
   avatar + tooltip).
-- **Tray icon** (Phase 2, because it is the recovery path if the avatar is hidden or off-screen): Show/Hide, Talk, Configure, Quit Svara, so the app stays reachable if the
+- **Tray icon** (Phase 2, because it is the recovery path if the avatar is hidden or off-screen): Show/Hide, Talk, Type a message…, Stop (while busy), Configure, Quit Svara, so the app stays reachable if the
   avatar is hidden.
 - **Global hotkeys** (through GNOME custom shortcuts, §1.2): Show/Hide is available with the Phase 2
   desktop presence; **Stop** (suggested `Ctrl+Alt+.`) ships in Phase 4 together with desktop tools,
   because a kill switch must exist before the assistant can act; push-to-talk (suggested
   `Ctrl+Alt+Space`) ships with voice. Show/Hide and push-to-talk can cold-start Svara. All are opt-in,
   rebindable and removable in Configure.
+  The Talk shortcut is press-to-toggle a single utterance, not hold-to-talk (F09).
 
 ### 3.1 Control and recovery contract
 

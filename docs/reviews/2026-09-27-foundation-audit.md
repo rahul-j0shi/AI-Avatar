@@ -3,6 +3,11 @@
 Scope: code through **T0.10**, all 13 revamp documents, ADRs/spike reports, and the recorded R1–R38
 wishlist. Do not start T0.11 or Phase 1. This is the user's requested correction/review checkpoint.
 
+**Planning follow-up, 2026-10-02:** [14](../revamp/14-acceptance-and-integration.md) and
+[15](../revamp/15-developer-handoff.md) now define the per-AC ledger, corrected task DAG and exact
+resume package. Coqui was removed from v1 by explicit user choice. The historical planning gaps
+below are resolved by that follow-up; the empirical gates and implementation status are unchanged.
+
 ## Actual progress
 
 Core packages are scaffolding. There is no assistant core, CLI, tray or settings window yet.

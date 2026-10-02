@@ -49,6 +49,8 @@ later drive a browser extension; that is planned for, not built.
 | 11 | [Review, traceability & risks](11-review-and-traceability.md) | Wishlist → design → phase map, the gap log from the plan review, the risk register, the over-engineering check |
 | 12 | [Feature specification](12-feature-specification.md) | **Authoritative** per-feature scope: behaviour, in/out of scope, limits, defaults, config keys, errors, acceptance criteria |
 | 13 | [Implementation guide & backlog](13-implementation-guide.md) | Verified toolchain and dependencies, repo bootstrap, conventions, ADR index, config key reference, protocol payloads, the ordered task backlog |
+| 14 | [Acceptance & integration](14-acceptance-and-integration.md) | Every AC's owner/test ID, cross-feature contracts, remaining experiment gates and measurement methods |
+| 15 | [Developer handoff — start here](15-developer-handoff.md) | Exact current standing, reproducible commands, first work package, module/test locations and completion template |
 
 ## Design principles
 
@@ -111,11 +113,15 @@ later drive a browser extension; that is planned for, not built.
   on-demand windows; spike controls, terminals and stats never ship. The complete start/hide/mute/
   volume/quit/uninstall recovery matrix is in 02 §3.1.
 
-## Open questions
+## Planning complete; implementation gates remain
 
 Paused at T0.10 for the [foundation audit](../reviews/2026-09-27-foundation-audit.md). Open gates:
 Wayland on both releases, idle-focus/typing behavior, visible lip-sync accuracy and resource budgets.
 T0.11/T0.12 have not started. Accepted design decisions are not completed product features.
+The 2026-10-02 planning checkpoint resolves task ordering, partial-vs-final acceptance, missing
+configuration/protocol operations and failure decisions. Coqui is removed from v1 by user choice.
+Start with [15's foundation work package](15-developer-handoff.md#4-first-actionable-work-package--finish-the-current-step),
+then follow 13's acyclic dependency graph. Do not skip to new features while foundation gates fail.
 
 ## Research sources (checked Sep 2026)
 
