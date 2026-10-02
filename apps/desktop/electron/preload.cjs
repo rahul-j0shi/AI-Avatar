@@ -6,5 +6,6 @@ contextBridge.exposeInMainWorld("svaraSpike", {
   recordEvent: (name, details) => ipcRenderer.invoke("svara-spike:record-event", name, details),
   setFocusable: (focusable) => ipcRenderer.invoke("svara-spike:set-focusable", focusable),
   setInputRegions: (regions) => ipcRenderer.invoke("svara-spike:set-input-regions", regions),
+  setInteraction: (open) => ipcRenderer.invoke("svara-spike:set-interaction", open),
   setWindowPosition: (position) => ipcRenderer.invoke("svara-spike:set-window-position", position),
 });

@@ -54,3 +54,56 @@ SVARA_SPIKE_FOCUS_MODE=nonfocusable corepack pnpm --filter @svara/desktop shell:
 ```
 
 Default remains the managed shell baseline. Neither mode satisfies the complete product contract.
+
+## Managed input-hint candidate (2026-10-02)
+
+```bash
+SVARA_SPIKE_FOCUS_MODE=managed-hints corepack pnpm --filter @svara/desktop shell:probe
+```
+
+This opt-in experiment keeps the window managed and changes X11 `WM_HINTS.InputHint` plus
+`WM_TAKE_FOCUS`, instead of using Linux `setFocusable`. Requires a C compiler and X11 development
+headers (`libx11-dev`) for the spike only. The launcher builds the helper into a unique temporary
+directory and cleans it up on success/error. It adds no Python/JS runtime dependency or production
+native module. Unknown modes and a missing helper fail explicitly.
+
+Idle creation uses `showInactive`. Click **Probe Type interaction** or **Probe approval interaction**
+to explicitly enable keyboard input. Type accepts a harmless sentinel; Enter submits only its
+character count. The synthetic approval executes no tool. Escape or Close restores the idle hint.
+Native changes serialize, so a delayed open cannot overtake a close. The bridge accepts only the
+owned renderer. The original focus-toggle controls remain for the earlier experiments; in this
+mode they explain that `setFocusable` is not used.
+
+### Optional automated X11 regression
+
+Start the candidate with a loopback debugging endpoint in terminal 1:
+
+```bash
+SVARA_SPIKE_FOCUS_MODE=managed-hints corepack pnpm --filter @svara/desktop shell:probe --remote-debugging-address=127.0.0.1 --remote-debugging-port=9223
+```
+
+Start the separate **owned test window** in terminal 2:
+
+```bash
+corepack pnpm --filter @svara/desktop exec electron ../../spikes/ubuntu-integration/focus_target.cjs --remote-debugging-address=127.0.0.1 --remote-debugging-port=9224
+```
+
+With both windows visible, run in terminal 3:
+
+```bash
+node spikes/ubuntu-integration/focus_check.cjs --allow-test-input
+```
+
+Requires `xdotool` and `wmctrl`. It sends synthetic clicks/keys only to the owned test windows;
+avoid other desktop interaction until it finishes. It checks idle focus/real keyboard delivery,
+60×35 px drag, Type, Escape, approval navigation, native above/hints, invalid input and queued
+open/close. It restores test-window position, pointer and prior focus best-effort, including failure
+cleanup. No microphone, clipboard, screenshots of other apps, portal grants or settings writes.
+Close both windows/terminals afterward to stop their temporary debugging endpoints.
+
+This regression refuses non-X11 sessions: X11's active-window query cannot establish which native
+Wayland application has focus. On Wayland run the manual matrix against a **native Wayland** editor.
+The 24.04 X11 result is evidence for this candidate, not a passed G-PRESENCE on either target release.
+
+Native implementation reference:
+[Xlib window-manager hints and protocols](https://xorg.freedesktop.org/archive/current/doc/libX11/libX11/libX11.html).

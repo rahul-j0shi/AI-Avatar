@@ -27,3 +27,6 @@ Evidence:
 - [T0.10](../spikes/T0.10-ubuntu-integration.md) records partial X11 evidence and fallbacks.
   Both Wayland checks remain open. Non-focusable construction changes window management and is
   only an explicit experiment; the combined product focus contract is unresolved.
+- 2026-10-02: the managed-input-hint candidate passed combined idle click/keyboard, drag, Type,
+  Escape and keyboard approval on X11 without losing above/managed state. Both Wayland validations
+  remain required before adopting it; [reproduction](../../spikes/ubuntu-integration/README.md).

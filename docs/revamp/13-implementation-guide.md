@@ -8,7 +8,9 @@ the features and acceptance criteria (AC) from 12 that it must satisfy.
 
 ## 1. How work flows
 
-**Checkpoint:** paused at T0.10 for [foundation review](../reviews/2026-09-27-foundation-audit.md).
+**Checkpoint:** T0.10 resumed on 2026-10-02 after [foundation review](../reviews/2026-09-27-foundation-audit.md).
+Its opt-in managed-input-hint candidate passes local X11 focus/typing/drag checks; target Wayland
+evidence remains open in [the spike report](../spikes/T0.10-ubuntu-integration.md).
 The planning review is recorded in [14](14-acceptance-and-integration.md). Close corrections and
 open gates before T0.11. A checkpoint merge is not a passed acceptance test.
 

@@ -1,8 +1,9 @@
 # 15 — Developer handoff: start from the current repository
 
-Read this first when resuming development. This is a **planning-only** checkpoint; it does not add
-a production runtime or mark any feature accepted. The code baseline audited before this plan is
-commit `79fc6b1`; the current planning commit builds on it. Use current `main`, not that old commit,
+Read this first when resuming development. The plan is implementation-ready, with a partial
+foundation follow-up on 2026-10-02; it does not add a production runtime or mark any feature
+accepted. The code baseline audited before this plan is commit `79fc6b1`; planning checkpoint
+`23176a7` and the subsequent focus experiment build on it. Use current `main`, not those old commits,
 when creating the next branch. Keep all earlier task branches.
 
 ## 1. What actually exists
@@ -15,7 +16,7 @@ when creating the next branch. Keep all earlier task branches.
 | `apps/desktop/electron/` | Electron probe, preload, validation, tests | Reference for native experiments; T2.1 owns production lifecycle/security bridge |
 | `packages/protocol/` | Workspace placeholder | T1.2/T1.6 add schemas/generation, not hand-maintained duplicate TS models |
 | `spikes/kokoro/` | Pinned ONNX runner, five fixtures, closure/timing tests | Duration extraction works; visible timing and speed gates are still open |
-| `spikes/ubuntu-integration/` | Read-only capability probe, opt-in mic transport check | Neither proves Wayland interaction or acoustic AEC |
+| `spikes/ubuntu-integration/` | Capability/mic probes, opt-in native input-hint helper and owned-window X11 focus regression | Ten X11 focus checks pass; neither Wayland interaction nor acoustic AEC is proven |
 | `docs/spikes/`, `docs/adr/`, foundation audit | Evidence and accepted design decisions | An accepted ADR is not a passed feature test |
 
 There is no working `svara` product command, tray, Configure window, agent loop or real voice
@@ -61,6 +62,12 @@ passed as `make ... UV=/absolute/path/to/uv`; historical `/tmp` paths are not pr
 
 Latest audited local baseline: 10 Python, 9 Vitest, 4 Node tests and 19 runtime import/four native
 smoke checks. Those counts are a baseline, not a fixed target to preserve. Re-run and record results.
+
+The 2026-10-02 follow-up passed the Python/TypeScript checks, desktop build and ten owned-window
+X11 focus checks. Cached Kokoro playback completes and cancels correctly; a 10-second idle probe
+rendered at 29.9 fps. Inference remains above the eventual 400 ms target. No usable Wayland session
+or 26.04 VM was found in the checked locations. See the T0.10/T0.8 evidence for measured limits;
+resume this same foundation task, not Phase 1.
 
 ## 4. First actionable work package — finish the current step
 

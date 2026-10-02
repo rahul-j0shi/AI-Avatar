@@ -42,6 +42,14 @@ declare global {
       recordEvent: (name: string, details: unknown) => Promise<void>;
       setFocusable: (focusable: boolean) => Promise<string>;
       setInputRegions: (regions: InputRegion[]) => Promise<string>;
+      setInteraction: (open: boolean) => Promise<{
+        open: boolean;
+        inputHint: boolean;
+        takeFocus: boolean;
+        overrideRedirect: boolean;
+        focused: boolean;
+        alwaysOnTop: boolean;
+      }>;
       setWindowPosition: (position: Point) => Promise<void>;
     };
   }
@@ -82,11 +90,20 @@ const collectInputRegions = (): InputRegion[] =>
 
 export function SpikeApp() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const dragRef = useRef<{ pointer: Point; window?: Point; id: number } | null>(null);
+  const dragRef = useRef<{
+    pointer: Point;
+    latest?: Point;
+    window?: Point;
+    id: number;
+  } | null>(null);
   const playbackRef = useRef(new SpikePlayback());
   const toneContextsRef = useRef(new Set<AudioContext>());
   const rendererRef = useRef<AvatarRenderer | null>(null);
   const objectUrlRef = useRef<string | undefined>(undefined);
+  const interactionRef = useRef<HTMLDivElement>(null);
+  const interactionGeneration = useRef(0);
+  const [interaction, setInteraction] = useState<"type" | "approval" | null>(null);
+  const [typedText, setTypedText] = useState("");
   const [mode, setModeState] = useState<AvatarMode>("idle");
   const [kokoroSample, setKokoroSample] = useState<KokoroSample | null>(null);
   const [modelStatus, setModelStatus] = useState(
@@ -203,6 +220,40 @@ export function SpikeApp() {
     }
   };
 
+  const changeInteraction = async (next: "type" | "approval" | null) => {
+    const generation = ++interactionGeneration.current;
+    setInteraction(next);
+    try {
+      if (!window.svaraSpike) throw new Error("The native interaction probe requires Electron.");
+      const result = await window.svaraSpike.setInteraction(next !== null);
+      if (generation !== interactionGeneration.current) return;
+      setShellStatus(`Interaction: ${JSON.stringify(result)}`);
+      if (next) interactionRef.current?.querySelector<HTMLElement>("input, button")?.focus();
+      await updateInputRegions();
+    } catch (error) {
+      if (generation !== interactionGeneration.current) return;
+      setInteraction(null);
+      setShellStatus(`Interaction probe failed: ${String(error)}`);
+      await updateInputRegions();
+    }
+  };
+
+  useEffect(() => {
+    // Content changes need a shape update even when the outer body does not resize.
+    if (interaction === null || interactionRef.current) void updateInputRegions();
+  }, [updateInputRegions, interaction]);
+
+  const applyWindowDrag = () => {
+    const drag = dragRef.current;
+    if (!drag?.window || !drag.latest || !window.svaraSpike) return;
+    const dx = drag.latest.x - drag.pointer.x;
+    const dy = drag.latest.y - drag.pointer.y;
+    if (Math.hypot(dx, dy) <= 4) return;
+    void window.svaraSpike
+      .setWindowPosition({ x: drag.window.x + dx, y: drag.window.y + dy })
+      .catch((error: unknown) => setModelStatus(`Drag failed: ${String(error)}`));
+  };
+
   const startWindowDrag = async (event: React.PointerEvent<HTMLElement>) => {
     if (event.button !== 0 || !window.svaraSpike) {
       return;
@@ -215,7 +266,12 @@ export function SpikeApp() {
     dragRef.current = drag;
     try {
       const position = await window.svaraSpike.getWindowPosition();
-      if (dragRef.current === drag) dragRef.current.window = position;
+      if (dragRef.current === drag) {
+        dragRef.current.window = position;
+        // A quick first move can arrive before this IPC response. Replay its
+        // latest coordinates instead of requiring another pointer movement.
+        applyWindowDrag();
+      }
     } catch (error) {
       if (dragRef.current === drag) dragRef.current = null;
       setModelStatus(`Drag failed: ${String(error)}`);
@@ -224,16 +280,11 @@ export function SpikeApp() {
 
   const moveWindowDrag = (event: React.PointerEvent<HTMLElement>) => {
     const drag = dragRef.current;
-    if (!drag?.window || drag.id !== event.pointerId || !window.svaraSpike) {
+    if (!drag || drag.id !== event.pointerId || !window.svaraSpike) {
       return;
     }
-    if (Math.hypot(event.screenX - drag.pointer.x, event.screenY - drag.pointer.y) <= 4) return;
-    void window.svaraSpike
-      .setWindowPosition({
-        x: drag.window.x + event.screenX - drag.pointer.x,
-        y: drag.window.y + event.screenY - drag.pointer.y,
-      })
-      .catch((error: unknown) => setModelStatus(`Drag failed: ${String(error)}`));
+    drag.latest = { x: event.screenX, y: event.screenY };
+    applyWindowDrag();
   };
 
   const loadFile = async (file: File) => {
@@ -406,6 +457,74 @@ export function SpikeApp() {
             {running === "speaking" ? "Measuring 10s…" : "Measure speaking · 60 fps"}
           </button>
         </div>
+
+        <div className="measurements">
+          <button onClick={() => void changeInteraction("type")} type="button">
+            Probe Type interaction
+          </button>
+          <button onClick={() => void changeInteraction("approval")} type="button">
+            Probe approval interaction
+          </button>
+        </div>
+
+        {interaction ? (
+          <div
+            ref={interactionRef}
+            role="dialog"
+            aria-label="Native keyboard interaction probe"
+            tabIndex={-1}
+            data-input-region
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                void changeInteraction(null);
+              }
+            }}
+          >
+            {interaction === "type" ? (
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  setModelStatus(
+                    `Type probe received ${typedText.length} characters (no model call)`,
+                  );
+                  setTypedText("");
+                  void changeInteraction(null);
+                }}
+              >
+                <label>
+                  Keyboard delivery sentinel
+                  <input
+                    aria-label="Keyboard delivery sentinel"
+                    maxLength={4000}
+                    onChange={(event) => setTypedText(event.target.value)}
+                    value={typedText}
+                  />
+                </label>
+                <button type="submit">Submit sentinel</button>
+              </form>
+            ) : (
+              <fieldset aria-label="Synthetic approval (no tool executes)">
+                <p>Synthetic permission request — no tool executes.</p>
+                {["Allow once", "Always allow", "Deny"].map((decision) => (
+                  <button
+                    key={decision}
+                    onClick={() => {
+                      setModelStatus(`Approval probe: ${decision} (no tool execution)`);
+                      void changeInteraction(null);
+                    }}
+                    type="button"
+                  >
+                    {decision}
+                  </button>
+                ))}
+              </fieldset>
+            )}
+            <button onClick={() => void changeInteraction(null)} type="button">
+              Close interaction (Esc)
+            </button>
+          </div>
+        ) : null}
 
         <div className="measurements">
           <button onClick={() => void setWindowFocusable(true)} type="button">
