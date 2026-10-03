@@ -95,11 +95,23 @@ async function main() {
     xdo("windowactivate", "--sync", targetId);
     await target.evaluate('document.querySelector("textarea").focus()');
     position = await spike.evaluate("window.svaraSpike.getWindowPosition()");
+    // A right-edge starting position would make the WM clamp the +60px test drag.
+    // Place only the owned fixture safely inside the display; restore its prior position below.
+    const display = await spike.evaluate(
+      "({width: screen.availWidth, height: screen.availHeight})",
+    );
+    assert.ok(
+      display.width >= 1120 && display.height >= 800,
+      "Focus fixture needs a larger display",
+    );
+    await spike.evaluate("window.svaraSpike.setWindowPosition({x:500,y:150})");
+    await wait(200);
+    const probePosition = await spike.evaluate("window.svaraSpike.getWindowPosition()");
     const region = await spike.evaluate(
       '(()=>{const b=document.querySelector("canvas").getBoundingClientRect();return {x:b.x+b.width/2,y:b.y+b.height/2}})()',
     );
-    const x = Math.round(position.x + region.x);
-    const y = Math.round(position.y + region.y);
+    const x = Math.round(probePosition.x + region.x);
+    const y = Math.round(probePosition.y + region.y);
     xdo("mousemove", String(x), String(y));
     xdo("click", "1");
     await wait(200);
@@ -115,8 +127,8 @@ async function main() {
     xdo("mouseup", "1");
     await wait(200);
     assert.deepEqual(await spike.evaluate("window.svaraSpike.getWindowPosition()"), {
-      x: position.x + 60,
-      y: position.y + 35,
+      x: probePosition.x + 60,
+      y: probePosition.y + 35,
     });
     assert.equal(xdo("getactivewindow"), targetId, "drag stole focus");
     await open("Type");
@@ -188,7 +200,11 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+module.exports = { client };
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

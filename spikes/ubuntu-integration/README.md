@@ -94,11 +94,14 @@ With both windows visible, run in terminal 3:
 node spikes/ubuntu-integration/focus_check.cjs --allow-test-input
 ```
 
-Requires `xdotool` and `wmctrl`. It sends synthetic clicks/keys only to the owned test windows;
+Requires `xdotool`, `wmctrl` and a display of at least 1120×800 for the fixture. It sends synthetic
+clicks/keys only to the owned test windows;
 avoid other desktop interaction until it finishes. It checks idle focus/real keyboard delivery,
 60×35 px drag, Type, Escape, approval navigation, native above/hints, invalid input and queued
 open/close. It restores test-window position, pointer and prior focus best-effort, including failure
-cleanup. No microphone, clipboard, screenshots of other apps, portal grants or settings writes.
+cleanup. It temporarily positions the owned window inside the screen so a right-edge start cannot
+make the WM clamp the drag and produce a false failure. No microphone, clipboard, screenshots of
+other apps, portal grants or settings writes.
 Close both windows/terminals afterward to stop their temporary debugging endpoints.
 
 This regression refuses non-X11 sessions: X11's active-window query cannot establish which native
@@ -107,3 +110,48 @@ The 24.04 X11 result is evidence for this candidate, not a passed G-PRESENCE on 
 
 Native implementation reference:
 [Xlib window-manager hints and protocols](https://xorg.freedesktop.org/archive/current/doc/libX11/libX11/libX11.html).
+
+## Repeatable idle resource baseline
+
+Start the candidate with the loopback debug argument shown above. Wait for the real ignored VRM to
+load and startup to settle. Do not play speech or interact with the probe during each CPU sample.
+No ONNX/STT models are loaded by this Electron-only run. Inspect the process list and use the
+**main Electron PID** whose command ends in this repository's `apps/desktop/electron/main.cjs`:
+
+```bash
+pgrep -af 'electron/dist/electron .*electron/main.cjs'
+uv run --project core python spikes/ubuntu-integration/resource_probe.py --pid MAIN_PID --duration 300 --interval 5
+node spikes/ubuntu-integration/render_probe.cjs --allow-render-probe
+```
+
+Replace `MAIN_PID` with the inspected positive integer. The sampler refuses unrelated/renderer
+roots, does not change process state and writes JSON to stdout only. It sums the main process and
+live descendants, excluding the preview server, Python/core, unrelated apps and compositor. CPU is
+percent of **one logical core**; RSS is an approximate sum that counts shared resident pages more
+than once. The sampler uses PID/start-time identities, aborts if the root exits/reuses its PID and
+reports sampled process departures. CPU after an exit between samples can be missed; never present
+such a measurement as an exact acceptance pass. Newly discovered descendants contribute their
+observed lifetime ticks. Processes born and gone entirely between samples are not observed.
+Field definitions: [Linux `/proc/pid/stat`](https://man7.org/linux/man-pages/man5/proc_pid_stat.5.html).
+
+For the hidden baseline, minimize **only the owned probe window** (inspect its client ID with
+`wmctrl -l`, then `xdotool windowminimize CLIENT_ID`), wait for it to settle and repeat both commands.
+Restore it afterward. The frame probe reports `document.hidden` plus a ten-second submitted-frame
+sample from the existing diagnostic renderer. It records no screenshots or microphone audio.
+Run it before/after the resource sample to check visibility, not continuously during CPU sampling.
+No debug endpoint is enabled in a packaged production app by these scripts.
+
+To exercise replacement/disposal on the same cached fixture, restore the owned window and run:
+
+```bash
+node spikes/ubuntu-integration/render_probe.cjs --allow-render-probe --replace-20
+```
+
+This replaces the real VRM twenty times through the diagnostic file input, then measures frames.
+Repeat the resource sample after settling and compare RSS, retaining the before/after workloads.
+It changes only the owned spike's in-memory avatar; no new asset download, config or disk write.
+RSS alone cannot prove all GPU/heap resources were released; no forced garbage collection is used.
+
+These are diagnostic-page baselines, not the final avatar-only UI, an implemented core budget,
+presented-frame accuracy, 20-avatar leak evidence or Wayland acceptance. Record hardware, power
+mode, scaling, lockfile/model hashes and workload next to the output; failed budgets stay failed.

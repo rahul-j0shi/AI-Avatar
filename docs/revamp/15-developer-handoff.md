@@ -1,7 +1,7 @@
 # 15 — Developer handoff: start from the current repository
 
 Read this first when resuming development. The plan is implementation-ready, with a partial
-foundation follow-up on 2026-10-02; it does not add a production runtime or mark any feature
+foundation follow-ups through 2026-10-03; it does not add a production runtime or mark any feature
 accepted. The code baseline audited before this plan is commit `79fc6b1`; planning checkpoint
 `23176a7` and the subsequent focus experiment build on it. Use current `main`, not those old commits,
 when creating the next branch. Keep all earlier task branches.
@@ -68,6 +68,11 @@ X11 focus checks. Cached Kokoro playback completes and cancels correctly; a 10-s
 rendered at 29.9 fps. Inference remains above the eventual 400 ms target. No usable Wayland session
 or 26.04 VM was found in the checked locations. See the T0.10/T0.8 evidence for measured limits;
 resume this same foundation task, not Phase 1.
+
+The 2026-10-03 resource follow-up adds reproducible CPU/RSS and frame/replacement probes. Five-minute
+visible idle uses 16.123% of one core (budget still failed); minimized idle uses 0.033% with zero
+submitted frames in its ten-second frame check. These are the diagnostic page, not production/core
+acceptance. See T0.10's newest gate ledger and the spike README; the Wayland prerequisites remain.
 
 ## 4. First actionable work package — finish the current step
 
